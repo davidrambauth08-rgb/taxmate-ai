@@ -4090,5 +4090,158 @@ window.calcTax=function(){
   },500);
 })();
 </script>
+<script>
+/* v3.1: Spanish i18n + form date pre-fill + UX improvements */
+(function(){
+  var LANG=localStorage.getItem('taxmate-lang')||'en';
+  var ES={
+    /* Sidebar */
+    'Dashboard':'Panel','Income':'Ingresos','Expenses':'Gastos','Invoices':'Facturas',
+    'Tax Estimator':'Estimador de Impuestos','Reports':'Reportes','AI Insights':'IA Insights',
+    'Productivity':'Productividad','Resources':'Recursos','Grow Money':'Invertir','Settings':'Configuraci\u00f3n',
+    'Back to Landing':'Volver al Inicio',
+    /* Page titles */
+    'Track and manage your income streams':'Rastrea y gestiona tus ingresos',
+    'Monitor your business spending':'Controla los gastos de tu negocio',
+    'Create and manage invoices':'Crea y gestiona facturas',
+    'Australian tax calculator FY 2024\u201325':'Calculadora de impuestos AU FY 2024\u201325',
+    'Smart recommendations for your business':'Recomendaciones inteligentes para tu negocio',
+    'Your earnings vs. the market':'Tus ganancias vs. el mercado',
+    'Customize your TaxMate experience':'Personaliza tu experiencia TaxMate',
+    /* Summary cards */
+    'TOTAL INCOME':'INGRESO TOTAL','TOTAL EXPENSES':'GASTOS TOTALES','ESTIMATED TAX':'IMPUESTO ESTIMADO',
+    'NET PROFIT':'GANANCIA NETA','THIS MONTH':'ESTE MES','OUTSTANDING':'PENDIENTE',
+    'GST CREDITS (ITC)':'CR\u00c9DITOS GST','DEDUCTIBLE EXPENSES':'GASTOS DEDUCIBLES',
+    'TOTAL INVOICED':'TOTAL FACTURADO','OVERDUE':'VENCIDO',
+    /* Buttons */
+    '+ Add Income':'+ Agregar Ingreso','+ Add Expense':'+ Agregar Gasto','+ New Invoice':'+ Nueva Factura',
+    '+ Add':'+ Agregar','Export CSV':'Exportar CSV','Calculate Estimate':'Calcular Estimaci\u00f3n',
+    'Search income...':'Buscar ingresos...','Search expenses...':'Buscar gastos...',
+    'Search invoices...':'Buscar facturas...',
+    /* Filters */
+    'All Categories':'Todas las Categor\u00edas','All Clients':'Todos los Clientes',
+    'This Financial Year':'Este A\u00f1o Fiscal','All Months':'Todos los Meses',
+    'All':'Todo','Unpaid':'Sin Pagar','Paid':'Pagado','Overdue':'Vencido',
+    /* Table headers */
+    'DATE':'FECHA','CLIENT':'CLIENTE','DESCRIPTION':'DESCRIPCI\u00d3N','CATEGORY':'CATEGOR\u00cdA',
+    'AMOUNT':'MONTO','GST':'GST','STATUS':'ESTADO','SUPPLIER':'PROVEEDOR','DEDUCTIBLE':'DEDUCIBLE',
+    'RECEIPT':'RECIBO','INVOICE #':'FACTURA #','ISSUE DATE':'FECHA EMISI\u00d3N','DUE DATE':'VENCIMIENTO',
+    'ACTIONS':'ACCIONES',
+    /* Tax Estimator */
+    'Input Your Figures':'Ingresa tus Cifras','Tax Year':'A\u00f1o Fiscal',
+    'Total Income (AUD)':'Ingreso Total (AUD)','Total Deductible Expenses (AUD)':'Gastos Deducibles (AUD)',
+    'GST Collected (AUD)':'GST Cobrado (AUD)','GST Paid on Expenses (AUD)':'GST Pagado (AUD)',
+    'Tax Estimate':'Estimaci\u00f3n de Impuestos','Gross Income':'Ingreso Bruto',
+    'Less: Deductible Expenses':'Menos: Gastos Deducibles','Taxable Income':'Ingreso Gravable',
+    'Income Tax (before offsets)':'Impuesto (antes de compensaciones)',
+    'Low Income Tax Offset (LITO)':'Compensaci\u00f3n por Ingreso Bajo (LITO)',
+    'Estimated Income Tax Payable':'Impuesto Estimado a Pagar',
+    'GST Summary':'Resumen GST','GST Collected':'GST Cobrado','GST Credits (ITC)':'Cr\u00e9ditos GST',
+    'GST Payable (BAS)':'GST a Pagar (BAS)','AI Recommendation':'Recomendaci\u00f3n IA',
+    /* Dashboard */
+    'Productivity Snapshot':'Resumen de Productividad','ANNUAL (PROJECTED)':'ANUAL (PROYECTADO)',
+    'MONTHLY AVERAGE':'PROMEDIO MENSUAL','MARKET MEDIAN':'MEDIANA DEL MERCADO','VS MARKET':'VS MERCADO',
+    'Income vs Expenses':'Ingresos vs Gastos','Expense Categories':'Categor\u00edas de Gastos',
+    'Recent Transactions':'Transacciones Recientes','Reminders':'Recordatorios',
+    'Monthly Progress':'Progreso Mensual','View all':'Ver todo',
+    /* Settings */
+    'Business Profile':'Perfil de Negocio','Full Name':'Nombre Completo','Business Name':'Nombre del Negocio',
+    'User Type':'Tipo de Usuario','Business Address':'Direcci\u00f3n del Negocio','Phone':'Tel\u00e9fono',
+    'Email':'Correo','Tax & GST Settings':'Configuraci\u00f3n de Impuestos y GST',
+    'GST Registered':'Registrado en GST','Default GST Rate':'Tasa GST por Defecto',
+    'BAS Reporting Period':'Per\u00edodo BAS','Currency':'Moneda','Appearance':'Apariencia',
+    'Theme':'Tema','Light':'Claro','Dark':'Oscuro',
+    /* Monthly checkin */
+    'Time to log your':'Es hora de registrar tus','income & expenses':'ingresos y gastos',
+    'Keeping up month by month makes tax time easy!':'\u00a1Llevar la cuenta mes a mes facilita la \u00e9poca de impuestos!',
+    '+ Add Income':'+ Agregar Ingreso','+ Add Expenses':'+ Agregar Gastos',
+    'Remind me later':'Record\u00e1rmelo despu\u00e9s','Skip this month':'Omitir este mes',
+    /* Progress */
+    'months logged':'meses registrados',
+    /* General */
+    'No expenses recorded yet':'A\u00fan no hay gastos registrados','auto-filled':'auto-completado',
+    'paid':'pagado','unpaid':'sin pagar','yes':'s\u00ed','No':'No','true':'s\u00ed','View':'Ver'
+  };
+
+  function t(key){
+    if(LANG!=='es')return key;
+    return ES[key]||key;
+  }
+  window.t=t;
+
+  function translatePage(){
+    if(LANG!=='es')return;
+    /* Translate nav items */
+    var sidebar=document.querySelector('.sidebar');
+    if(sidebar){
+      var items=sidebar.querySelectorAll('.nav-item');
+      items.forEach(function(item){
+        item.childNodes.forEach(function(node){
+          if(node.nodeType===3){
+            var trimmed=node.textContent.trim();
+            if(trimmed&&ES[trimmed]){node.textContent=node.textContent.replace(trimmed,ES[trimmed]);}
+          }
+        });
+      });
+    }
+    /* Translate page headers (h1, h2, h3) and labels */
+    document.querySelectorAll('h1,h2,h3,h4,label,th,button,p,.stat-label,.tax-row-label').forEach(function(el){
+      el.childNodes.forEach(function(node){
+        if(node.nodeType===3){
+          var txt=node.textContent.trim();
+          if(txt&&ES[txt]){node.textContent=node.textContent.replace(txt,ES[txt]);}
+        }
+      });
+    });
+    /* Translate placeholders */
+    document.querySelectorAll('input[placeholder]').forEach(function(inp){
+      var ph=inp.placeholder;
+      if(ES[ph])inp.placeholder=ES[ph];
+    });
+    /* Translate uppercase stat headers */
+    document.querySelectorAll('div,span').forEach(function(el){
+      if(el.children.length>0)return;
+      var txt=el.textContent.trim();
+      if(txt&&ES[txt]&&txt===txt.toUpperCase()){el.textContent=ES[txt];}
+    });
+  }
+
+  /* Run translation after navigation */
+  var _pNav31=window.navigate;
+  window.navigate=function(p){
+    if(p==='ai')p='insights';
+    if(_pNav31)_pNav31(p);
+    setTimeout(translatePage,200);
+  };
+
+  /* Run on initial load */
+  setTimeout(translatePage,1000);
+
+  /* === Form date pre-fill: Set current date on Add Income/Expense forms === */
+  var origAddIncome=window.addIncome;
+  if(origAddIncome){
+    window.addIncome=function(){
+      origAddIncome();
+      /* Pre-fill date field */
+      setTimeout(function(){
+        var dateInputs=document.querySelectorAll('input[type="date"]');
+        var today=new Date().toISOString().split('T')[0];
+        dateInputs.forEach(function(inp){if(!inp.value)inp.value=today;});
+      },200);
+    };
+  }
+  var origAddExpense=window.addExpense;
+  if(origAddExpense){
+    window.addExpense=function(){
+      origAddExpense();
+      setTimeout(function(){
+        var dateInputs=document.querySelectorAll('input[type="date"]');
+        var today=new Date().toISOString().split('T')[0];
+        dateInputs.forEach(function(inp){if(!inp.value)inp.value=today;});
+      },200);
+    };
+  }
+})();
+</script>
 </body>
 </html>
