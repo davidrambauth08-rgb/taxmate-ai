@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" async></script>
 <script src="https://unpkg.com/roughjs@4.6.0/bundled/rough.js" async></script>
-<style>
+<style
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
 
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
@@ -3213,12 +3213,12 @@ function fixProductivity(){
   var allEl=pg.querySelectorAll("p,span,div,h3,h4,strong");
   allEl.forEach(function(el){
     var t=el.textContent;
-    if(t.indexOf("Plumb")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1){
+    if((t.indexOf("Plumb")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1) && el.children.length===0){
       el.textContent=t.replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing Services/g,u.businessName||"My Business").replace(/Mitchell Plumbing/g,u.businessName||"My Business").replace(/Plumber/g,u.businessType||"Business").replace(/plumber/g,(u.businessType||"business").toLowerCase()).replace(/Sydney AUS/g,"Australia");
     }
-    if(t.indexOf("$82,000")>-1) el.textContent=t.replace("$82,000","$"+projected.toLocaleString());
-    if(t.indexOf("$64,267")>-1) el.textContent=t.replace("$64,267","$"+totalInc.toLocaleString());
-    if(t.match(/\+57%/)) el.textContent=t.replace("+57%",totalInc>0?"+"+Math.round((projected-totalInc)/totalInc*100)+"%":"0%");
+    if(t.indexOf("$82,000")>-1 && el.children.length===0) el.textContent=t.replace("$82,000","$"+projected.toLocaleString());
+    if(t.indexOf("$64,267")>-1 && el.children.length===0) el.textContent=t.replace("$64,267","$"+totalInc.toLocaleString());
+    if(t.match(/\+57%/) && el.children.length===0) el.textContent=t.replace("+57%",totalInc>0?"+"+Math.round((projected-totalInc)/totalInc*100)+"%":"0%");
   });
 }
 
@@ -3272,10 +3272,10 @@ function fixSettings(){
 function fixVisaBanner(){
   var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
   if(!u.visa) return;
-  var allEl=document.querySelectorAll(".visa-banner,.banner,p,span,div");
+  var pg=document.getElementById("page-dashboard");if(!pg) return;var allEl=pg.querySelectorAll("span,a,button,p");
   allEl.forEach(function(el){
     var t=el.textContent;
-    if(t.indexOf("Set My Status")>-1||t.indexOf("visa status")>-1){
+    if(el.children.length===0 && (t.indexOf("Set My Status")>-1||t.indexOf("visa status")>-1)){
       el.textContent="Visa: "+u.visa;
     }
   });
@@ -3306,7 +3306,7 @@ function fixInsights(){
   var allEl=pg.querySelectorAll("p,span,div,li");
   allEl.forEach(function(el){
     var t=el.textContent;
-    if(t.indexOf("Smith Constructions")>-1||t.indexOf("INV-0038")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1){
+    if((t.indexOf("Smith Constructions")>-1||t.indexOf("INV-0038")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1) && el.children.length===0){
       el.textContent=t.replace(/Smith Constructions/g,"Client").replace(/INV-0038/g,"INV-001").replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing/g,u.businessName||"My Business");
     }
   });
@@ -3323,10 +3323,10 @@ function fixProductivityPage(){
   var allEl=pg.querySelectorAll("p,span,div,h3,h4,strong");
   allEl.forEach(function(el){
     var t=el.textContent;
-    if(t.indexOf("$64,267")>-1) el.textContent=t.replace("$64,267","$"+totalInc.toLocaleString());
-    if(t.indexOf("$48,200")>-1) el.textContent=t.replace("$48,200","$"+Math.round(totalInc*0.75).toLocaleString());
-    if(t.indexOf("$82,000")>-1) el.textContent=t.replace("$82,000","$"+projected.toLocaleString());
-    if(t.indexOf("Plumb")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1){
+    if(t.indexOf("$64,267")>-1 && el.children.length===0) el.textContent=t.replace("$64,267","$"+totalInc.toLocaleString());
+    if(t.indexOf("$48,200")>-1 && el.children.length===0) el.textContent=t.replace("$48,200","$"+Math.round(totalInc*0.75).toLocaleString());
+    if(t.indexOf("$82,000")>-1 && el.children.length===0) el.textContent=t.replace("$82,000","$"+projected.toLocaleString());
+    if((t.indexOf("Plumb")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1) && el.children.length===0){
       el.textContent=el.textContent.replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing Services/g,u.businessName||"My Business").replace(/Mitchell Plumbing/g,u.businessName||"My Business").replace(/Plumber/g,u.businessType||"Business");
     }
   });
@@ -3427,7 +3427,7 @@ function fixResources(){
   var allEl=pg.querySelectorAll("p,span,div,h3,h4");
   allEl.forEach(function(el){
     var t=el.textContent;
-    if(t.indexOf("Jake")>-1||t.indexOf("Plumb")>-1||t.indexOf("Mitchell")>-1){
+    if((t.indexOf("Jake")>-1||t.indexOf("Plumb")>-1||t.indexOf("Mitchell")>-1) && el.children.length===0){
       el.textContent=t.replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing Services/g,u.businessName||"My Business").replace(/Mitchell Plumbing/g,u.businessName||"My Business").replace(/Plumber/g,u.businessType||"Business").replace(/plumber/g,(u.businessType||"business").toLowerCase());
     }
   });
