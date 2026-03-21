@@ -4990,4 +4990,53 @@ window.calcTax=function(){
     </script>
     </script>
 </body>
+
+    <script>
+        /* v3.4.3: Delayed override of selectVisa/saveVisa (runs after base code) */
+        setTimeout(function(){
+            var _visaPending=null;
+            window.selectVisa=function(type,el){
+                _visaPending=type;
+                var parent=el?el.parentElement:null;
+                if(!parent)return;
+                var cards=parent.children;
+                for(var i=0;i<cards.length;i++){
+                    var c=cards[i];
+                    if(c.style&&c.style.cursor==='pointer'){
+                        c.style.border='2px solid var(--border)';
+                        c.style.background='var(--surface)';
+                        c.style.transform='scale(1)';
+                    }
+                }
+                if(el){
+                    el.style.border='2px solid var(--blue)';
+                    el.style.background='var(--blue-light)';
+                    el.style.transform='scale(1.02)';
+                }
+            };
+            window.saveVisa=function(){
+                if(!_visaPending){
+                    var LANG=localStorage.getItem('taxmate-lang')||'en';
+                    alert(LANG==='es'?'Por favor selecciona un tipo de visa':'Please select a visa type');
+                    return;
+                }
+                localStorage.setItem('taxmate-visa',_visaPending);
+                var user=JSON.parse(localStorage.getItem('taxmate-user')||'{}');
+                var labels={citizen:'Citizen',skilled_work:'Skilled Work',working_holiday:'Working Holiday',student:'Student',business:'Business/Investor',other:'Other'};
+                user.visa=labels[_visaPending]||_visaPending;
+                localStorage.setItem('taxmate-user',JSON.stringify(user));
+                _visaPending=null;
+                document.querySelectorAll('.modal-bg').forEach(function(el){el.style.display='none';});
+                var mc=document.querySelector('.modal-close');
+                if(mc)mc.click();
+                var allEls=document.querySelectorAll('button,div,span');
+                for(var i=0;i<allEls.length;i++){
+                    if(allEls[i].textContent.indexOf('Visa:')>-1&&allEls[i].textContent.length<30){
+                        allEls[i].textContent='Visa: '+user.visa;break;
+                    }
+                }
+            };
+        },2000);
+    </script>
+    </script>
 </html>
