@@ -3629,5 +3629,49 @@ window.navigate=function(p){if(_nav2)_nav2(p);setTimeout(wireExports,400);setTim
 setTimeout(wireExports,800);
 })();
 </script>
+
+<script>
+/* v2.8: Fix tax display bug + navigate aliases + auto-calc */
+(function(){
+/* 1. Override navigate: map ai->insights, auto-calc on tax page */
+var _pNav=window.navigate;
+window.navigate=function(p){
+  if(p==='ai')p='insights';
+  if(_pNav)_pNav(p);
+  if(p==='tax')setTimeout(function(){if(typeof calcTax==='function')calcTax();},300);
+};
+
+/* 2. Fix calcTax: "Income Tax (before offsets)" shows wrong value */
+/* Bug: displays tax+lito which is $700 even when actual tax is $0 */
+/* Fix: recalculate pre-LITO tax and correct the display */
+var _origCalc=window.calcTax;
+window.calcTax=function(){
+  if(_origCalc)_origCalc();
+  var inc=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
+  var exp=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
+  var totalInc=0;inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+  var ded=0;exp.forEach(function(r){if(r.deduction==='yes'||r.deduction===true)ded+=parseFloat(r.amount)||0;});
+  var ti=totalInc-ded;if(ti<0)ti=0;
+  var preTax=0;
+  if(ti<=18200)preTax=0;
+  else if(ti<=45000)preTax=(ti-18200)*0.16;
+  else if(ti<=135000)preTax=4288+(ti-45000)*0.30;
+  else if(ti<=190000)preTax=31288+(ti-135000)*0.37;
+  else preTax=51638+(ti-190000)*0.45;
+  preTax=Math.round(preTax);
+  var tp=document.getElementById('page-tax');if(!tp)return;
+  var rows=tp.querySelectorAll('.tax-row');
+  rows.forEach(function(row){
+    var lbl=row.querySelector('.tax-row-label');
+    var val=row.querySelector('.tax-row-val');
+    if(!lbl||!val)return;
+    var t=lbl.textContent.toLowerCase();
+    if(t.indexOf('income tax')!==-1&&t.indexOf('before')!==-1){
+      val.textContent='$'+preTax.toLocaleString();
+    }
+  });
+};
+})();
+</script>
 </body>
 </html>
