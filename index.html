@@ -4628,5 +4628,64 @@ window.calcTax=function(){
         })();
     </script>
     </script>
+    <script>
+        /* v3.3.1: Fix signup - allow re-registration + clear stale accounts */
+        (function(){
+            /* Override _authSubmit to remove duplicate email block */
+            window._authSubmit=function(){
+                var emailEl=document.getElementById('authEmail');
+                var passEl=document.getElementById('authPass');
+                var nameEl=document.getElementById('authName');
+                var bizEl=document.getElementById('authBiz');
+                var errEl=document.getElementById('authError');
+                var btn=document.getElementById('authSubmit');
+                var LANG=localStorage.getItem('taxmate-lang')||'en';
+                var email=emailEl?emailEl.value.trim():'';
+                var pass=passEl?passEl.value:'';
+                var isSignup=!!nameEl;
+                if(!email||!pass||(isSignup&&!nameEl.value.trim())){
+                    errEl.textContent=LANG==='es'?'Por favor completa todos los campos':'Please fill all fields';
+                    errEl.style.display='block';return;
+                }
+                if(email.indexOf('@')===-1){
+                    errEl.textContent=LANG==='es'?'Correo invalido':'Invalid email';
+                    errEl.style.display='block';return;
+                }
+                btn.textContent=isSignup?(LANG==='es'?'Creando cuenta...':'Creating account...'):(LANG==='es'?'Iniciando sesion...':'Logging in...');
+                btn.disabled=true;
+                setTimeout(function(){
+                    var accounts=JSON.parse(localStorage.getItem('taxmate-accounts')||'{}');
+                    if(isSignup){
+                        /* Always allow signup - create or update account */
+                        accounts[email]={pass:btoa(pass),name:nameEl.value.trim(),biz:bizEl?bizEl.value:'Freelancer',created:new Date().toISOString()};
+                        localStorage.setItem('taxmate-accounts',JSON.stringify(accounts));
+                        var userData={name:nameEl.value.trim(),email:email,business_type:bizEl?bizEl.value:'Freelancer',visa:'Citizen',abn:'',business_name:'',created:new Date().toISOString()};
+                        localStorage.setItem('taxmate-user',JSON.stringify(userData));
+                        document.getElementById('authModal').remove();
+                        showApp();
+                    }else{
+                        /* Login: check credentials */
+                        if(!accounts[email]){
+                            errEl.textContent=LANG==='es'?'Correo o contrasena incorrectos':'Invalid email or password';
+                            errEl.style.display='block';
+                            btn.textContent=LANG==='es'?'Iniciar Sesion':'Log In';
+                            btn.disabled=false;return;
+                        }
+                        if(accounts[email].pass!==btoa(pass)){
+                            errEl.textContent=LANG==='es'?'Correo o contrasena incorrectos':'Invalid email or password';
+                            errEl.style.display='block';
+                            btn.textContent=LANG==='es'?'Iniciar Sesion':'Log In';
+                            btn.disabled=false;return;
+                        }
+                        var userData={name:accounts[email].name,email:email,business_type:accounts[email].biz,visa:'Citizen',abn:'',business_name:'',created:accounts[email].created};
+                        localStorage.setItem('taxmate-user',JSON.stringify(userData));
+                        document.getElementById('authModal').remove();
+                        showApp();
+                    }
+                },800);
+            };
+        })();
+    </script>
+    </script>
 </body>
 </html>
