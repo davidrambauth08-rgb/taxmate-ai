@@ -5039,4 +5039,30 @@ window.calcTax=function(){
         },2000);
     </script>
     </script>
+<script>
+/* v3.5: Fix dashboard totals - sync global arrays from localStorage */
+(function(){
+setTimeout(function(){
+    var _baseUpdateKPIs=window.updateKPIs;
+    window.updateKPIs=function(){
+        incomeData=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+        expenseData=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+        invoiceData=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+        if(typeof _baseUpdateKPIs==="function")_baseUpdateKPIs();
+    };
+    var _pNav35=window.navigate;
+    window.navigate=function(page){
+        incomeData=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+        expenseData=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+        invoiceData=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+        if(typeof _pNav35==="function")_pNav35(page);
+        if(page==="dashboard"&&typeof updateKPIs==="function")updateKPIs();
+    };
+    incomeData=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+    expenseData=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+    invoiceData=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+    if(typeof updateKPIs==="function")updateKPIs();
+},2500);
+})();
+</script>
 </html>
