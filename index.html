@@ -3631,7 +3631,7 @@ setTimeout(wireExports,800);
 </script>
 
 <script>
-/* v2.8.1: Comprehensive tax estimator fix + navigate aliases */
+/* v2.8.2: Comprehensive tax estimator fix (safe AI tip update) */
 (function(){
 /* 1. Navigate aliases: ai->insights, auto-calc on tax page */
 var _pNav=window.navigate;
@@ -3645,14 +3645,11 @@ window.navigate=function(p){
 var _origCalc=window.calcTax;
 window.calcTax=function(){
   if(_origCalc)_origCalc();
-  /* Recalculate everything from localStorage for accurate display */
   var inc=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
   var exp=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
   var totalInc=0;inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
-  var totalExp=0;exp.forEach(function(r){totalExp+=parseFloat(r.amount)||0;});
   var ded=0;exp.forEach(function(r){if(r.deduction==='yes'||r.deduction===true)ded+=parseFloat(r.amount)||0;});
   var ti=totalInc-ded;if(ti<0)ti=0;
-  /* Correct tax brackets */
   var preTax=0;
   if(ti<=18200)preTax=0;
   else if(ti<=45000)preTax=(ti-18200)*0.16;
@@ -3660,26 +3657,24 @@ window.calcTax=function(){
   else if(ti<=190000)preTax=31288+(ti-135000)*0.37;
   else preTax=51638+(ti-190000)*0.45;
   preTax=Math.round(preTax);
-  /* Effective LITO: only offset actual tax, not more */
   var litoMax=0;
-  if(ti<=45000)litoMax=700;
-  else if(ti<66667)litoMax=700-(ti-45000)*0.05;
+  if(ti<=45000)litoMax=700;else if(ti<66667)litoMax=700-(ti-45000)*0.05;
   if(litoMax<0)litoMax=0;
   var effectiveLITO=Math.min(litoMax,preTax);
   var finalTax=preTax-effectiveLITO;if(finalTax<0)finalTax=0;
-  /* GST from localStorage */
   var gstC=0,gstP=0;
   inc.forEach(function(r){if(r.gst===true||r.gst==='true'||r.gst==='yes')gstC+=((parseFloat(r.amount)||0)/11);});
   exp.forEach(function(r){if(r.gst===true||r.gst==='true'||r.gst==='yes')gstP+=((parseFloat(r.amount)||0)/11);});
   gstC=Math.round(gstC);gstP=Math.round(gstP);
   var gstNet=gstC-gstP;
-  var fmt=function(n){return "$"+Math.round(n).toLocaleString();};
-  /* Fix form fields */
+  var fmt=function(n){return '$'+Math.round(n).toLocaleString();};
   var tp=document.getElementById('page-tax');if(!tp)return;
+  /* Fix form fields */
   var inputs=tp.querySelectorAll('input');
   inputs.forEach(function(inp){
-    var lbl=(inp.previousElementSibling||{}).textContent||'';
-    var lb=lbl.toLowerCase();
+    var prev=inp.previousElementSibling;
+    if(!prev)return;
+    var lb=prev.textContent.toLowerCase();
     if(lb.indexOf('total income')!==-1||lb.indexOf('annual income')!==-1)inp.value=totalInc.toFixed(2);
     else if(lb.indexOf('deduct')!==-1)inp.value=ded.toFixed(2);
     else if(lb.indexOf('gst collected')!==-1)inp.value=gstC;
@@ -3702,26 +3697,18 @@ window.calcTax=function(){
     else if(t.indexOf('gst credit')!==-1)val.textContent='\u2212 '+fmt(gstP);
     else if(t.indexOf('gst payable')!==-1)val.textContent=fmt(gstNet);
   });
-  /* Fix AI Recommendation */
+  /* Fix AI Recommendation - SAFELY target only the <p> inside the tip card */
   var quarterly=Math.round((finalTax+gstNet)/4);
-  var tipEl=tp.querySelector('.ai-tip, [class*="tip"]');
-  if(!tipEl){
-    var allDivs=tp.querySelectorAll('div');
-    for(var i=0;i<allDivs.length;i++){
-      if(allDivs[i].textContent.indexOf('Set aside')!==-1&&allDivs[i].children.length<5){
-        tipEl=allDivs[i];break;
+  var allP=tp.querySelectorAll('p');
+  for(var i=0;i<allP.length;i++){
+    if(allP[i].textContent.indexOf('Set aside')!==-1||allP[i].textContent.indexOf('per quarter')!==-1){
+      if(quarterly<=0){
+        allP[i].innerHTML='No income tax is due. Your next BAS payment of <strong>'+fmt(gstNet)+'</strong> is due 28 April 2025.';
+      } else {
+        allP[i].innerHTML='Set aside <strong>'+fmt(quarterly)+' per quarter</strong> to cover your income tax. Your next BAS payment of '+fmt(gstNet)+' is due 28 April 2025.';
       }
+      break;
     }
-  }
-  if(tipEl){
-    var nextBAS='28 April 2025';
-    var tipText='\uD83D\uDCA1 AI Recommendation\n';
-    if(quarterly<=0){
-      tipText+='No income tax is due. Your next BAS payment of '+fmt(gstNet)+' is due '+nextBAS+'.';
-    } else {
-      tipText+='Set aside '+fmt(quarterly)+' per quarter to cover your income tax. Your next BAS payment of '+fmt(gstNet)+' is due '+nextBAS+'.';
-    }
-    tipEl.textContent=tipText;
   }
 };
 })();
