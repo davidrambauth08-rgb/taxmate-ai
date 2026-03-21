@@ -3174,5 +3174,282 @@ window.navigate=function(p){
 
 })();
 </script>
+
+<script>
+/* TaxMate v2.5 – Fix all remaining hardcoded data */
+(function(){
+
+function fixDashTax(){
+  var pg=document.getElementById("page-dashboard");
+  if(!pg) return;
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var taxable=totalInc;
+  var tax=0;
+  if(taxable>190000) tax+=((taxable-190000)*0.45);
+  if(taxable>135000) tax+=((Math.min(taxable,190000)-135000)*0.37);
+  if(taxable>45000) tax+=((Math.min(taxable,135000)-45000)*0.30);
+  if(taxable>18200) tax+=((Math.min(taxable,45000)-18200)*0.16);
+  if(taxable<=190000){var li=700;if(taxable>45000) li=Math.max(0,700-(taxable-45000)*0.05);tax=Math.max(0,tax-li);}
+  tax=Math.round(tax);
+  var cards=pg.querySelectorAll(".kpi-card,.stat-card,.card");
+  cards.forEach(function(c){
+    var lbl=c.querySelector(".kpi-label,h3,h4");
+    if(lbl && lbl.textContent.toLowerCase().indexOf("tax")>-1){
+      var val=c.querySelector(".kpi-val,.card-value,p");
+      if(val) val.textContent="$"+tax.toLocaleString();
+    }
+  });
+}
+
+function fixProductivity(){
+  var pg=document.getElementById("page-dashboard");
+  if(!pg) return;
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var monthly=Math.round(totalInc/12);
+  var projected=Math.round(totalInc*1.1);
+  var allEl=pg.querySelectorAll("p,span,div,h3,h4,strong");
+  allEl.forEach(function(el){
+    var t=el.textContent;
+    if(t.indexOf("Plumb")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1){
+      el.textContent=t.replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing Services/g,u.businessName||"My Business").replace(/Mitchell Plumbing/g,u.businessName||"My Business").replace(/Plumber/g,u.businessType||"Business").replace(/plumber/g,(u.businessType||"business").toLowerCase()).replace(/Sydney AUS/g,"Australia");
+    }
+    if(t.indexOf("$82,000")>-1) el.textContent=t.replace("$82,000","$"+projected.toLocaleString());
+    if(t.indexOf("$64,267")>-1) el.textContent=t.replace("$64,267","$"+totalInc.toLocaleString());
+    if(t.match(/\+57%/)) el.textContent=t.replace("+57%",totalInc>0?"+"+Math.round((projected-totalInc)/totalInc*100)+"%":"0%");
+  });
+}
+
+function fixSettings(){
+  var pg=document.getElementById("page-settings");
+  if(!pg) return;
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  var inputs=pg.querySelectorAll("input,select");
+  inputs.forEach(function(inp){
+    var lbl=inp.previousElementSibling||inp.closest("label");
+    var lt=lbl?lbl.textContent.toLowerCase():"";
+    var ph=(inp.placeholder||"").toLowerCase();
+    var nm=(inp.name||"").toLowerCase();
+    if(lt.indexOf("name")>-1||ph.indexOf("name")>-1||nm.indexOf("name")>-1){
+      if(lt.indexOf("business")>-1||nm.indexOf("business")>-1) inp.value=u.businessName||"";
+      else inp.value=u.name||"";
+    }
+    if(lt.indexOf("email")>-1||ph.indexOf("email")>-1||nm.indexOf("email")>-1) inp.value=u.email||"";
+    if(lt.indexOf("abn")>-1||ph.indexOf("abn")>-1||nm.indexOf("abn")>-1) inp.value=u.abn||"";
+    if(lt.indexOf("visa")>-1||lt.indexOf("status")>-1||nm.indexOf("visa")>-1){
+      if(inp.tagName==="SELECT"){
+        for(var j=0;j<inp.options.length;j++){if(inp.options[j].value===u.visa||inp.options[j].text===u.visa) inp.selectedIndex=j;}
+      } else inp.value=u.visa||"";
+    }
+    if(lt.indexOf("type")>-1||lt.indexOf("industry")>-1||nm.indexOf("type")>-1){
+      if(inp.tagName==="SELECT"){
+        for(var j=0;j<inp.options.length;j++){if(inp.options[j].value===u.businessType||inp.options[j].text===u.businessType) inp.selectedIndex=j;}
+      } else inp.value=u.businessType||"";
+    }
+  });
+  var saveBtn=pg.querySelector("button");
+  if(saveBtn){
+    saveBtn.onclick=function(){
+      var nu=Object.assign({},u);
+      inputs.forEach(function(inp){
+        var nm=(inp.name||"").toLowerCase();
+        if(nm.indexOf("name")>-1 && nm.indexOf("business")===-1) nu.name=inp.value;
+        if(nm.indexOf("business")>-1) nu.businessName=inp.value;
+        if(nm.indexOf("email")>-1) nu.email=inp.value;
+        if(nm.indexOf("abn")>-1) nu.abn=inp.value;
+        if(nm.indexOf("visa")>-1) nu.visa=inp.value;
+        if(nm.indexOf("type")>-1) nu.businessType=inp.value;
+      });
+      localStorage.setItem("taxmate-user",JSON.stringify(nu));
+      if(window.updateSidebar) window.updateSidebar();
+      alert("Settings saved!");
+    };
+  }
+}
+
+function fixVisaBanner(){
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  if(!u.visa) return;
+  var allEl=document.querySelectorAll(".visa-banner,.banner,p,span,div");
+  allEl.forEach(function(el){
+    var t=el.textContent;
+    if(t.indexOf("Set My Status")>-1||t.indexOf("visa status")>-1){
+      el.textContent="Visa: "+u.visa;
+    }
+  });
+}
+
+function fixInsights(){
+  var pg=document.getElementById("page-insights");
+  if(!pg) return;
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var inv=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var net=totalInc-totalExp;
+  var overdue=inv.filter(function(i){return i.status!=="paid" && new Date(i.due)<new Date();});
+  var tips=[];
+  if(overdue.length>0) tips.push("You have "+overdue.length+" overdue invoice(s). Follow up to improve cash flow.");
+  if(totalExp>totalInc*0.6) tips.push("Expenses are over 60% of income. Review spending for savings opportunities.");
+  if(net>0) tips.push("Your savings rate is "+Math.round(net/totalInc*100)+"%. "+(net/totalInc>0.2?"Great job!":"Consider ways to increase it."));
+  tips.push("Set aside ~$"+Math.round(totalInc*0.25).toLocaleString()+" for tax reserves this year.");
+  if(u.visa && u.visa.indexOf("Student")>-1) tips.push("As a student visa holder, track your work hours to stay within limits.");
+  var cards=pg.querySelectorAll(".card,.insight-card");
+  cards.forEach(function(c,i){
+    var body=c.querySelector("p,.card-body,.insight-text");
+    if(body && tips[i]) body.textContent=tips[i];
+  });
+  var allEl=pg.querySelectorAll("p,span,div,li");
+  allEl.forEach(function(el){
+    var t=el.textContent;
+    if(t.indexOf("Smith Constructions")>-1||t.indexOf("INV-0038")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1){
+      el.textContent=t.replace(/Smith Constructions/g,"Client").replace(/INV-0038/g,"INV-001").replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing/g,u.businessName||"My Business");
+    }
+  });
+}
+
+function fixProductivityPage(){
+  var pg=document.getElementById("page-productivity");
+  if(!pg) return;
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var monthly=Math.round(totalInc/12);
+  var projected=Math.round(totalInc*1.1);
+  var allEl=pg.querySelectorAll("p,span,div,h3,h4,strong");
+  allEl.forEach(function(el){
+    var t=el.textContent;
+    if(t.indexOf("$64,267")>-1) el.textContent=t.replace("$64,267","$"+totalInc.toLocaleString());
+    if(t.indexOf("$48,200")>-1) el.textContent=t.replace("$48,200","$"+Math.round(totalInc*0.75).toLocaleString());
+    if(t.indexOf("$82,000")>-1) el.textContent=t.replace("$82,000","$"+projected.toLocaleString());
+    if(t.indexOf("Plumb")>-1||t.indexOf("Jake")>-1||t.indexOf("Mitchell")>-1){
+      el.textContent=el.textContent.replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing Services/g,u.businessName||"My Business").replace(/Mitchell Plumbing/g,u.businessName||"My Business").replace(/Plumber/g,u.businessType||"Business");
+    }
+  });
+}
+
+function fixInvestPage(){
+  var pg=document.getElementById("page-invest");
+  if(!pg) return;
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var net=totalInc-totalExp;
+  var monthly=net/12;
+  var investBudget=Math.round(monthly*0.2);
+  var emergFund=Math.round(monthly*3);
+  var superAmt=Math.round(totalInc*0.115);
+  var savingsRate=totalInc>0?Math.round((net/totalInc)*100):0;
+  var cards=pg.querySelectorAll(".card");
+  cards.forEach(function(c){
+    var h=c.querySelector("h3,h4,.card-title");
+    if(!h) return;
+    var t=h.textContent.toLowerCase();
+    if(t.indexOf("invest")>-1||t.indexOf("grow")>-1||t.indexOf("budget")>-1){
+      var vals=c.querySelectorAll("p,span,.kpi-val,.card-value");
+      vals.forEach(function(v){if(v.textContent.match(/\$/)) v.textContent="$"+investBudget.toLocaleString()+"/mo";});
+    }
+    if(t.indexOf("emergency")>-1||t.indexOf("fund")>-1||t.indexOf("savings")>-1){
+      var vals=c.querySelectorAll("p,span,.kpi-val,.card-value");
+      vals.forEach(function(v){
+        if(v.textContent.match(/\$/)) v.textContent="$"+emergFund.toLocaleString();
+        if(v.textContent.match(/%/)) v.textContent=savingsRate+"%";
+      });
+    }
+    if(t.indexOf("super")>-1||t.indexOf("retirement")>-1){
+      var vals=c.querySelectorAll("p,span,.kpi-val,.card-value");
+      vals.forEach(function(v){if(v.textContent.match(/\$/)) v.textContent="$"+superAmt.toLocaleString()+"/yr";});
+    }
+  });
+  var allP=pg.querySelectorAll("p,span,div");
+  allP.forEach(function(el){
+    var txt=el.textContent;
+    if(txt.indexOf("Plumb")>-1||txt.indexOf("Jake")>-1){
+      el.textContent=txt.replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing/g,u.businessName||"My Business").replace(/Plumber/g,u.businessType||"Business");
+    }
+  });
+}
+
+function fixExportPDF(){
+  var pg=document.getElementById("page-reports");
+  if(!pg) return;
+  var btns=pg.querySelectorAll("button");
+  btns.forEach(function(b){
+    if(b.textContent.toLowerCase().indexOf("export")>-1||b.textContent.toLowerCase().indexOf("pdf")>-1){
+      b.onclick=function(){generateReport();};
+    }
+  });
+}
+function generateReport(){
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var inv=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var net=totalInc-totalExp;
+  var taxable=totalInc;var tax=0;
+  if(taxable>190000) tax+=((taxable-190000)*0.45);
+  if(taxable>135000) tax+=((Math.min(taxable,190000)-135000)*0.37);
+  if(taxable>45000) tax+=((Math.min(taxable,135000)-45000)*0.30);
+  if(taxable>18200) tax+=((Math.min(taxable,45000)-18200)*0.16);
+  if(taxable<=190000){var li=700;if(taxable>45000) li=Math.max(0,700-(taxable-45000)*0.05);tax=Math.max(0,tax-li);}
+  tax=Math.round(tax);
+  var c="TAXMATE AI - FINANCIAL REPORT\n";
+  c+="Generated: "+new Date().toLocaleDateString()+"\n";
+  c+="Business: "+(u.businessName||u.name||"N/A")+"\n";
+  c+="ABN: "+(u.abn||"N/A")+"\n========================\n\n";
+  c+="INCOME SUMMARY\nTotal Income: $"+totalInc.toLocaleString()+"\n";
+  inc.forEach(function(r){c+="  "+r.source+": $"+(parseFloat(r.amount)||0).toLocaleString()+"\n";});
+  c+="\nEXPENSE SUMMARY\nTotal Expenses: $"+totalExp.toLocaleString()+"\n";
+  exp.forEach(function(r){c+="  "+r.category+": $"+(parseFloat(r.amount)||0).toLocaleString()+"\n";});
+  c+="\nNET PROFIT: $"+net.toLocaleString()+"\nESTIMATED TAX: $"+tax.toLocaleString()+"\n";
+  c+="\nINVOICES: "+inv.length+" total\n";
+  var paid=inv.filter(function(i){return i.status==="paid";}).length;
+  c+="Paid: "+paid+" | Outstanding: "+(inv.length-paid)+"\n";
+  var blob=new Blob([c],{type:"text/plain"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);a.download="TaxMate_Report_"+new Date().toISOString().slice(0,10)+".txt";
+  a.click();URL.revokeObjectURL(a.href);
+  alert("Report exported!");
+}
+
+function fixResources(){
+  var pg=document.getElementById("page-resources");
+  if(!pg) return;
+  var u=JSON.parse(localStorage.getItem("taxmate-user")||"{}");
+  var allEl=pg.querySelectorAll("p,span,div,h3,h4");
+  allEl.forEach(function(el){
+    var t=el.textContent;
+    if(t.indexOf("Jake")>-1||t.indexOf("Plumb")>-1||t.indexOf("Mitchell")>-1){
+      el.textContent=t.replace(/Jake Mitchell/g,u.name||"User").replace(/Mitchell Plumbing Services/g,u.businessName||"My Business").replace(/Mitchell Plumbing/g,u.businessName||"My Business").replace(/Plumber/g,u.businessType||"Business").replace(/plumber/g,(u.businessType||"business").toLowerCase());
+    }
+  });
+}
+
+var _origNav25=window.navigate;
+window.navigate=function(page){
+  if(_origNav25) _origNav25(page);
+  setTimeout(function(){
+    fixDashTax();fixProductivity();fixSettings();fixVisaBanner();
+    fixInsights();fixProductivityPage();fixInvestPage();
+    fixExportPDF();fixResources();
+  },300);
+};
+
+setTimeout(function(){
+  fixDashTax();fixProductivity();fixSettings();fixVisaBanner();
+  fixInsights();fixProductivityPage();fixInvestPage();
+  fixExportPDF();fixResources();
+},500);
+
+})();
+</script>
 </body>
 </html>
