@@ -5065,4 +5065,47 @@ setTimeout(function(){
 },2500);
 })();
 </script>
+<script>
+/* v3.5.1: Fix income/expense page KPI cards */
+(function(){
+setTimeout(function(){
+var _prevUpdateKPIs=window.updateKPIs;
+window.updateKPIs=function(){
+if(typeof _prevUpdateKPIs==="function")_prevUpdateKPIs();
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var fmt=function(n){return"$"+Math.abs(n).toLocaleString("en-AU",{minimumFractionDigits:0,maximumFractionDigits:0});};
+var now=new Date();var cm=now.getMonth();var cy=now.getFullYear();
+var thisMonthInc=inc.filter(function(e){if(!e.date)return false;var d=new Date(e.date);return d.getMonth()===cm&&d.getFullYear()===cy;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var thisMonthExp=exp.filter(function(e){if(!e.date)return false;var d=new Date(e.date);return d.getMonth()===cm&&d.getFullYear()===cy;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var pages=["page-income","page-expenses"];
+pages.forEach(function(pid){
+var pg=document.getElementById(pid);
+if(!pg)return;
+pg.querySelectorAll(".card").forEach(function(card){
+var lbl=card.querySelector(".kpi-label");
+if(!lbl)return;
+var valEl=lbl.nextElementSibling;
+if(!valEl)return;
+var lt=lbl.textContent.toLowerCase();
+if(lt.indexOf("ingreso total")!==-1||lt.indexOf("total income")!==-1)valEl.textContent=fmt(totalInc);
+else if(lt.indexOf("gastos totales")!==-1||lt.indexOf("total expense")!==-1)valEl.textContent=fmt(totalExp);
+else if(lt.indexOf("este mes")!==-1||lt.indexOf("this month")!==-1){
+if(pid==="page-income")valEl.textContent=fmt(thisMonthInc);
+else valEl.textContent=fmt(thisMonthExp);
+}
+else if(lt.indexOf("pendiente")!==-1||lt.indexOf("outstanding")!==-1)valEl.textContent=fmt(totalInc);
+else if(lt.indexOf("deducible")!==-1||lt.indexOf("deductible")!==-1)valEl.textContent=fmt(totalExp);
+else if(lt.indexOf("gst")!==-1||lt.indexOf("itc")!==-1){
+var gstAmt=exp.filter(function(e){return(e.gst||"").toLowerCase().indexOf("yes")!==-1;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0)/11;},0);
+valEl.textContent=fmt(gstAmt);
+}
+});
+});
+};
+},2600);
+})();
+</script>
 </html>
