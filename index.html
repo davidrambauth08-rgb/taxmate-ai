@@ -4034,5 +4034,61 @@ window.calcTax=function(){
   }
 })();
 </script>
+<script>
+/* v3.0: Fix sidebar active state + nav improvements */
+(function(){
+  /* Page-to-label mapping for sidebar */
+  var PAGE_LABELS={
+    dashboard:'Dashboard',income:'Income',expenses:'Expenses',invoices:'Invoices',
+    tax:'Tax Estimator',reports:'Reports',insights:'AI Insights',
+    productivity:'Productivity',resources:'Resources',invest:'Grow Money',settings:'Settings'
+  };
+
+  function updateSidebarActive(page){
+    var sidebar=document.querySelector('.sidebar');
+    if(!sidebar)return;
+    var items=sidebar.querySelectorAll('.nav-item');
+    var label=PAGE_LABELS[page]||page;
+    items.forEach(function(item){
+      /* Get the text label from the nav item (skip emoji/icon) */
+      var spans=item.querySelectorAll('span');
+      var text='';
+      if(spans.length>0){text=spans[spans.length-1].textContent.trim();}
+      else{text=item.textContent.trim();}
+      /* Match by label or by page name substring */
+      var isMatch=false;
+      if(text===label)isMatch=true;
+      else if(text.toLowerCase().indexOf(page)!==-1)isMatch=true;
+      else if(page==='tax'&&text.indexOf('Tax')!==-1)isMatch=true;
+      else if(page==='insights'&&(text.indexOf('AI')!==-1||text.indexOf('Insight')!==-1))isMatch=true;
+      else if(page==='invest'&&(text.indexOf('Grow')!==-1||text.indexOf('Money')!==-1))isMatch=true;
+      if(isMatch){item.classList.add('active');}
+      else{item.classList.remove('active');}
+    });
+  }
+
+  /* Wrap navigate to fix sidebar AFTER page switch */
+  var _pNav30=window.navigate;
+  window.navigate=function(p){
+    if(p==='ai')p='insights';
+    if(_pNav30)_pNav30(p);
+    /* Fix sidebar active state after a small delay to ensure page switch is done */
+    setTimeout(function(){updateSidebarActive(p);},100);
+  };
+
+  /* Fix current page's sidebar on load */
+  setTimeout(function(){
+    /* Detect which page is currently visible */
+    var pages=['dashboard','income','expenses','invoices','tax','reports','insights','productivity','resources','invest','settings'];
+    for(var i=0;i<pages.length;i++){
+      var el=document.getElementById('page-'+pages[i]);
+      if(el&&getComputedStyle(el).display!=='none'){
+        updateSidebarActive(pages[i]);
+        break;
+      }
+    }
+  },500);
+})();
+</script>
 </body>
 </html>
