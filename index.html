@@ -3910,12 +3910,13 @@ window.calcTax=function(){
 
   /* === 5. AUTO-SHOW on load === */
   setTimeout(function(){
+    var appEl=document.getElementById('app');
+    if(!appEl||appEl.style.display==='none')return;
     showMonthlyCheckin();
     /* If already on dashboard, inject progress */
     var dp=document.getElementById('page-dashboard');
     if(dp&&dp.style.display!=='none')injectMonthlyProgress();
-  },1500);
-})();
+  },1500)})();
 </script>
 <script>
 /* v2.9.1: Fix AI Recommendation tip + check-in timing */
