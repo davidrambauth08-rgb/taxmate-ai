@@ -1,4 +1,4 @@
-var CACHE='taxmate-ai-v2';
+var CACHE='taxmate-ai-v3';
 var ASSETS=['/taxmate-ai/','/taxmate-ai/index.html','/taxmate-ai/manifest.json','/taxmate-ai/icon-192.png','/taxmate-ai/icon-512.png'];
 
 self.addEventListener('install',function(e){
