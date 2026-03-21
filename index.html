@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" async></script>
 <script src="https://unpkg.com/roughjs@4.6.0/bundled/rough.js" async></script>
-<style>
+<style
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
 
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
@@ -3515,6 +3515,118 @@ var css=h.substring(nl+1,b);
 if(css.length>s.textContent.length){s.textContent=css;}
 });
 },2000);
+})();
+</script>
+
+<script>
+/* v2.7: Fix hero gradient + functional CSV/PDF exports */
+(function(){
+/* 1. Fix hero span gradient - use hardcoded colors instead of CSS vars */
+function fixHeroGradient(){
+  var span=document.querySelector('.hero h1 span');
+  if(!span)return;
+  span.style.background='linear-gradient(135deg,#0F2557,#0D9488)';
+  span.style.webkitBackgroundClip='text';
+  span.style.backgroundClip='text';
+  span.style.webkitTextFillColor='transparent';
+}
+setTimeout(fixHeroGradient,100);
+setTimeout(fixHeroGradient,500);
+setTimeout(fixHeroGradient,2500);
+/* 2. Export CSV on Reports page */
+function exportReportsCSV(){
+  var inc=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
+  var exp=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
+  var csv='Type,Date,Description,Amount\n';
+  inc.forEach(function(r){
+    csv+='Income,'+((r.date||r.invoiceDate)||'')+','+(r.client||r.description||'')+','+(r.amount||0)+'\n';
+  });
+  exp.forEach(function(r){
+    csv+='Expense,'+(r.date||'')+','+(r.description||r.category||'')+','+(r.amount||0)+'\n';
+  });
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  csv+='\nSummary,,Total Income,'+totalInc+'\n';
+  csv+='Summary,,Total Expenses,'+totalExp+'\n';
+  csv+='Summary,,Net Profit,'+(totalInc-totalExp)+'\n';
+  csv+='Summary,,GST Payable,'+Math.round(totalInc/11)+'\n';
+  var blob=new Blob([csv],{type:'text/csv'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;a.download='taxmate_report_fy2024-25.csv';
+  a.click();URL.revokeObjectURL(url);
+  if(typeof showToast==='function')showToast('CSV exported!');
+}
+/* 3. Export PDF on Reports page */
+function exportReportsPDF(){
+  var inc=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
+  var exp=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
+  var user=JSON.parse(localStorage.getItem('taxmate-user')||'{}');
+  var totalInc=inc.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,r){return s+(parseFloat(r.amount)||0);},0);
+  var net=totalInc-totalExp;
+  var gst=Math.round(totalInc/11);
+  var name=user.name||'User';
+  var html='<html><head><title>TaxMate Report</title>';
+  html+='<style>body{font-family:Inter,Arial,sans-serif;padding:40px;color:#0F2557;}';
+  html+='h1{font-size:28px;border-bottom:3px solid #0F2557;padding-bottom:12px;}';
+  html+='h2{color:#0D9488;margin-top:28px;}';
+  html+='.summary{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:20px 0;}';
+  html+='.card{background:#F8FAFC;border:1px solid #E4EAF5;border-radius:8px;padding:16px;}';
+  html+='.card .label{font-size:11px;text-transform:uppercase;color:#4A6FA5;letter-spacing:1px;}';
+  html+='.card .value{font-size:24px;font-weight:700;margin-top:4px;}';
+  html+='.green{color:#0D9488;}.red{color:#DC2626;}';
+  html+='table{width:100%;border-collapse:collapse;margin-top:12px;}';
+  html+='th{text-align:left;padding:8px;border-bottom:2px solid #0F2557;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;}';
+  html+='td{padding:8px;border-bottom:1px solid #E4EAF5;}';
+  html+='.footer{margin-top:40px;text-align:center;color:#4A6FA5;font-size:12px;}';
+  html+='@media print{body{padding:20px;}}<\/style><\/head><body>';
+  html+='<h1>TaxMate AI &mdash; Financial Report<\/h1>';
+  html+='<p>Prepared for <strong>'+name+'<\/strong> &middot; FY 2024&ndash;25<\/p>';
+  html+='<div class="summary">';
+  html+='<div class="card"><div class="label">Total Income<\/div><div class="value green">$'+totalInc.toLocaleString()+'<\/div><\/div>';
+  html+='<div class="card"><div class="label">Total Expenses<\/div><div class="value">$'+totalExp.toLocaleString()+'<\/div><\/div>';
+  html+='<div class="card"><div class="label">Net Profit<\/div><div class="value">$'+net.toLocaleString()+'<\/div><\/div>';
+  html+='<div class="card"><div class="label">GST Payable<\/div><div class="value red">$'+gst.toLocaleString()+'<\/div><\/div>';
+  html+='<\/div>';
+  if(inc.length){
+    html+='<h2>Income<\/h2><table><tr><th>Date<\/th><th>Description<\/th><th>Amount<\/th><\/tr>';
+    inc.forEach(function(r){
+      html+='<tr><td>'+((r.date||r.invoiceDate)||'-')+'<\/td><td>'+(r.client||r.description||'-')+'<\/td><td>$'+(parseFloat(r.amount)||0).toLocaleString()+'<\/td><\/tr>';
+    });
+    html+='<\/table>';
+  }
+  if(exp.length){
+    html+='<h2>Expenses<\/h2><table><tr><th>Date<\/th><th>Category<\/th><th>Amount<\/th><\/tr>';
+    exp.forEach(function(r){
+      html+='<tr><td>'+(r.date||'-')+'<\/td><td>'+(r.category||r.description||'-')+'<\/td><td>$'+(parseFloat(r.amount)||0).toLocaleString()+'<\/td><\/tr>';
+    });
+    html+='<\/table>';
+  }
+  html+='<div class="footer">Generated by TaxMate AI &middot; '+new Date().toLocaleDateString()+'<\/div>';
+  html+='<\/body><\/html>';
+  var w=window.open('','_blank');
+  if(w){w.document.write(html);w.document.close();setTimeout(function(){w.print();},500);}
+  if(typeof showToast==='function')showToast('PDF report generated!');
+}
+/* 4. Wire up the export buttons */
+function wireExports(){
+  var pg=document.getElementById('page-reports');
+  if(!pg)return;
+  var btns=pg.querySelectorAll('button');
+  btns.forEach(function(b){
+    var t=b.textContent;
+    if(t.indexOf('Export CSV')>-1){
+      b.onclick=function(e){e.preventDefault();exportReportsCSV();};
+    }
+    if(t.indexOf('Export PDF')>-1){
+      b.onclick=function(e){e.preventDefault();exportReportsPDF();};
+    }
+  });
+}
+var _nav2=window.navigate;
+window.navigate=function(p){if(_nav2)_nav2(p);setTimeout(wireExports,400);setTimeout(fixHeroGradient,200);};
+setTimeout(wireExports,800);
 })();
 </script>
 </body>
