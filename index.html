@@ -5022,7 +5022,7 @@ window.calcTax=function(){
                 }
                 localStorage.setItem('taxmate-visa',_visaPending);
                 var user=JSON.parse(localStorage.getItem('taxmate-user')||'{}');
-                var labels={citizen:'Citizen',skilled_work:'Skilled Work',working_holiday:'Working Holiday',student:'Student',business:'Business/Investor',other:'Other'};
+                            var labels={citizen:'Citizen','482':'Skilled Work',whm:'Working Holiday',student:'Student',business:'Business/Investor',other:'Other'};
                 user.visa=labels[_visaPending]||_visaPending;
                 localStorage.setItem('taxmate-user',JSON.stringify(user));
                 _visaPending=null;
