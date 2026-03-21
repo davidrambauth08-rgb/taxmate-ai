@@ -3451,5 +3451,68 @@ setTimeout(function(){
 
 })();
 </script>
+<script>
+/* v2.5.2: Timing fix + CSS self-heal */
+(function(){
+function calcTax(inc){
+var t=0;
+if(inc>190000)t+=(inc-190000)*0.45;
+if(inc>135000)t+=(Math.min(inc,190000)-135000)*0.37;
+if(inc>45000)t+=(Math.min(inc,135000)-45000)*0.30;
+if(inc>18200)t+=(Math.min(inc,45000)-18200)*0.16;
+if(inc<=190000){var l=700;if(inc>45000)l=Math.max(0,700-(inc-45000)*0.05);t=Math.max(0,t-l);}
+return Math.round(t);
+}
+function getInc(){
+var r=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+return r.reduce(function(s,i){return s+(parseFloat(i.amount)||0);},0);
+}
+function getExp(){
+var r=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+return r.reduce(function(s,i){return s+(parseFloat(i.amount)||0);},0);
+}
+function fixTaxKPI(){
+var pg=document.getElementById("page-dashboard");
+if(!pg)return;
+var total=getInc(),tax=calcTax(total);
+var fmt="$"+tax.toLocaleString();
+pg.querySelectorAll(".kpi-card").forEach(function(c){
+var lbl=c.querySelector(".kpi-label");
+if(lbl&&lbl.textContent.toLowerCase().indexOf("tax")>-1){
+var val=c.querySelector(".kpi-value");
+if(val&&val.textContent!==fmt)val.textContent=fmt;
+}
+});
+}
+function fixInvestPanel(){
+var pg=document.getElementById("page-invest");
+if(!pg)return;
+var total=getInc(),exp=getExp();
+var net=total-exp,tax=calcTax(total),afterTax=net-tax;
+var mo=Math.round(afterTax/12*0.2),yr=mo*12;
+pg.querySelectorAll("span,div,p").forEach(function(el){
+if(el.children.length!==0)return;
+var t=el.textContent.trim();
+if(t==="$35,360")el.textContent="$"+net.toLocaleString();
+if(t==="$9,180")el.textContent="$"+tax.toLocaleString();
+if(t==="$26,180")el.textContent="$"+afterTax.toLocaleString();
+if(t==="~$10,680")el.textContent="~$"+yr.toLocaleString();
+});
+}
+function run(){fixTaxKPI();fixInvestPanel();}
+var _on=window.navigate;
+window.navigate=function(p){if(_on)_on(p);setTimeout(run,600);setTimeout(run,1200);};
+setTimeout(run,800);
+setTimeout(run,1500);
+setTimeout(function(){
+var s=document.querySelector("style");
+if(!s||s.textContent.length>30000)return;
+fetch(location.pathname).then(function(r){return r.text();}).then(function(h){
+var a=h.indexOf("<style>")+7,b=h.indexOf("</style>");
+if(a>6&&b>a){var css=h.substring(a,b);if(css.length>s.textContent.length)s.textContent=css;}
+});
+},2000);
+})();
+</script>
 </body>
 </html>
