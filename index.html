@@ -3917,5 +3917,121 @@ window.calcTax=function(){
   },1500);
 })();
 </script>
+<script>
+/* v2.9.1: Fix AI Recommendation tip + check-in timing */
+(function(){
+  /* 1. Fix calcTax AI tip: target DIV not P */
+  var _calcOrig=window.calcTax;
+  window.calcTax=function(){
+    if(_calcOrig)_calcOrig();
+    /* Recalculate values */
+    var inc=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
+    var exp=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
+    var totalInc=0;inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+    var ded=0;exp.forEach(function(r){if(r.deduction==='yes'||r.deduction===true)ded+=parseFloat(r.amount)||0;});
+    var ti=totalInc-ded;if(ti<0)ti=0;
+    var preTax=0;
+    if(ti<=18200)preTax=0;
+    else if(ti<=45000)preTax=(ti-18200)*0.16;
+    else if(ti<=135000)preTax=4288+(ti-45000)*0.30;
+    else if(ti<=190000)preTax=31288+(ti-135000)*0.37;
+    else preTax=51638+(ti-190000)*0.45;
+    preTax=Math.round(preTax);
+    var litoMax=0;
+    if(ti<=45000)litoMax=700;else if(ti<66667)litoMax=700-(ti-45000)*0.05;
+    if(litoMax<0)litoMax=0;
+    var effectiveLITO=Math.min(litoMax,preTax);
+    var finalTax=preTax-effectiveLITO;if(finalTax<0)finalTax=0;
+    var gstC=0,gstP=0;
+    inc.forEach(function(r){if(r.gst===true||r.gst==='true'||r.gst==='yes')gstC+=((parseFloat(r.amount)||0)/11);});
+    exp.forEach(function(r){if(r.gst===true||r.gst==='true'||r.gst==='yes')gstP+=((parseFloat(r.amount)||0)/11);});
+    gstC=Math.round(gstC);gstP=Math.round(gstP);
+    var gstNet=gstC-gstP;
+    var fmt=function(n){return '$'+Math.round(n).toLocaleString();};
+    var quarterly=Math.round((finalTax+gstNet)/4);
+    /* Search ALL elements (div, p, span) for "Set aside" or "$1,994" */
+    var tp=document.getElementById('page-tax');if(!tp)return;
+    var allEls=tp.querySelectorAll('div,p,span');
+    for(var i=0;i<allEls.length;i++){
+      var el=allEls[i];
+      var hasSetAside=false;
+      for(var j=0;j<el.childNodes.length;j++){
+        if(el.childNodes[j].nodeType===3){
+          var txt=el.childNodes[j].textContent;
+          if(txt.indexOf('Set aside')!==-1||txt.indexOf('1,994')!==-1||txt.indexOf('per quarter')!==-1||txt.indexOf('No income tax')!==-1){hasSetAside=true;break;}
+        }
+      }
+      if(hasSetAside){
+        if(finalTax<=0&&gstNet<=0){
+          el.innerHTML='No tax obligations at your current income level. Keep tracking your income and expenses!';
+        }else if(finalTax<=0){
+          el.innerHTML='No income tax is due at your current income level. Your next BAS payment of <strong>'+fmt(gstNet)+'</strong> is due 28 April 2025.';
+        }else{
+          el.innerHTML='Set aside <strong>'+fmt(quarterly)+' per quarter</strong> to cover your income tax. Your next BAS payment of <strong>'+fmt(gstNet)+'</strong> is due 28 April 2025.';
+        }
+        break;
+      }
+    }
+  };
+
+  /* 2. Fix check-in: only show inside app, not on landing */
+  var origCheckin=window._monthlyCheckinShown;
+  var oldShow=document.getElementById('monthly-checkin-overlay');
+  /* Patch the v2.9 auto-show: re-wrap showMonthlyCheckin to check if app is visible */
+  var _origShowApp=window.showApp;
+  window.showApp=function(){
+    if(_origShowApp)_origShowApp();
+    /* After app loads, show check-in if needed (with delay) */
+    setTimeout(function(){
+      var appEl=document.getElementById('app');
+      if(!appEl||appEl.style.display==='none')return;
+      var user=localStorage.getItem('taxmate-user');
+      if(!user)return;
+      var now=new Date();
+      var currentKey=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+      var dismissed=localStorage.getItem('taxmate-checkin-dismissed');
+      if(dismissed===currentKey)return;
+      var data=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
+      var hasThisMonth=false;
+      data.forEach(function(r){if(r.date){var d=new Date(r.date);if(d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear())hasThisMonth=true;}});
+      if(hasThisMonth)return;
+      /* Show checkin */
+      var existing=document.getElementById('monthly-checkin-overlay');
+      if(existing)return; /* already showing */
+      var uObj=JSON.parse(user);
+      var firstName=(uObj.name||'').split(' ')[0]||'there';
+      var monthName=now.toLocaleString('en',{month:'long',year:'numeric'});
+      var ov=document.createElement('div');
+      ov.id='monthly-checkin-overlay';
+      ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(15,37,87,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.3s ease';
+      var card=document.createElement('div');
+      card.style.cssText='background:#fff;border-radius:16px;padding:32px 36px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);text-align:center;';
+      card.innerHTML='<div style="font-size:48px;margin-bottom:12px;">\ud83d\udcc5</div>'
+        +'<h2 style="font-family:Playfair Display,serif;font-size:24px;color:#0F2557;margin:0 0 8px;">Hey '+firstName+'!</h2>'
+        +'<p style="color:#666;font-size:15px;margin:0 0 20px;line-height:1.5;">Time to log your <strong>'+monthName+'</strong> income &amp; expenses. Keeping up month by month makes tax time easy!</p>'
+        +'<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">'
+        +'<button id="checkin-income" style="background:linear-gradient(135deg,#0F2557,#162E6B);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">+ Add Income</button>'
+        +'<button id="checkin-expenses" style="background:linear-gradient(135deg,#0D9488,#10B981);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">+ Add Expenses</button>'
+        +'</div>'
+        +'<button id="checkin-later" style="background:none;border:none;color:#999;font-size:13px;margin-top:16px;cursor:pointer;text-decoration:underline;">Remind me later</button>'
+        +'<button id="checkin-skip" style="background:none;border:none;color:#ccc;font-size:12px;margin-top:8px;cursor:pointer;display:block;width:100%;text-align:center;">Skip this month</button>';
+      ov.appendChild(card);
+      document.body.appendChild(ov);
+      document.getElementById('checkin-income').onclick=function(){ov.remove();navigate('income');};
+      document.getElementById('checkin-expenses').onclick=function(){ov.remove();navigate('expenses');};
+      document.getElementById('checkin-later').onclick=function(){ov.remove();};
+      document.getElementById('checkin-skip').onclick=function(){localStorage.setItem('taxmate-checkin-dismissed',currentKey);ov.remove();};
+    },800);
+  };
+
+  /* 3. Remove the v2.9 auto-show that fires on landing page */
+  /* The v2.9 setTimeout showMonthlyCheckin runs at 1500ms - neutralize it */
+  var existingOverlay=document.getElementById('monthly-checkin-overlay');
+  if(existingOverlay){
+    var appEl=document.getElementById('app');
+    if(!appEl||appEl.style.display==='none'){existingOverlay.remove();}
+  }
+})();
+</script>
 </body>
 </html>
