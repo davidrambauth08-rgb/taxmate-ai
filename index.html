@@ -5108,4 +5108,110 @@ valEl.textContent=fmt(gstAmt);
 },2600);
 })();
 </script>
+
+<script>
+/* v3.6: Visa-aware tax calculation (ATO 2024-25 rates) */
+(function(){
+setTimeout(function(){
+
+/* Tax calculation by visa type */
+window._taxByVisa=function(taxableIncome, visa){
+  var v=(visa||"").toLowerCase();
+  var tax=0;
+  /* WHM: 15% to $45K, then standard non-resident */
+  if(v==="whm"){
+    if(taxableIncome<=45000){tax=taxableIncome*0.15;}
+    else if(taxableIncome<=135000){tax=6750+(taxableIncome-45000)*0.30;}
+    else if(taxableIncome<=190000){tax=33750+(taxableIncome-135000)*0.37;}
+    else{tax=54100+(taxableIncome-190000)*0.45;}
+    return tax;
+  }
+  /* Non-resident / foreign: 30% from $0 */
+  if(v==="other"){
+    if(taxableIncome<=135000){tax=taxableIncome*0.30;}
+    else if(taxableIncome<=190000){tax=40500+(taxableIncome-135000)*0.37;}
+    else{tax=60850+(taxableIncome-190000)*0.45;}
+    return tax;
+  }
+  /* Resident: citizen, 482, student, business — standard brackets + LITO */
+  if(taxableIncome<=18200){tax=0;}
+  else if(taxableIncome<=45000){tax=(taxableIncome-18200)*0.16;}
+  else if(taxableIncome<=135000){tax=4288+(taxableIncome-45000)*0.30;}
+  else if(taxableIncome<=190000){tax=31288+(taxableIncome-135000)*0.37;}
+  else{tax=51638+(taxableIncome-190000)*0.45;}
+  /* LITO for residents */
+  var lito=0;
+  if(taxableIncome<=45000){lito=700;}
+  else if(taxableIncome<66667){lito=700-(taxableIncome-45000)*0.05;}
+  if(lito<0)lito=0;
+  tax=tax-lito;
+  if(tax<0)tax=0;
+  return tax;
+};
+
+/* Override calcTax to use visa-aware brackets */
+var _baseCalcTax=window.calcTax;
+window.calcTax=function(){
+  var visa=localStorage.getItem("taxmate-visa")||"citizen";
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var totalInc=0;inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+  var totalExp=0;exp.forEach(function(r){totalExp+=parseFloat(r.amount)||0;});
+  var totalGST=0;
+  inc.forEach(function(r){if(r.gst==="yes"||r.gst===true||(r.gst&&r.gst.toString().toLowerCase().indexOf("yes")!==-1))totalGST+=((parseFloat(r.amount)||0)/11);});
+  exp.forEach(function(r){if(r.gst==="yes"||r.gst===true||(r.gst&&r.gst.toString().toLowerCase().indexOf("yes")!==-1))totalGST-=((parseFloat(r.amount)||0)/11);});
+  var deductions=0;exp.forEach(function(r){if(r.deduction==="yes"||r.deduction===true)deductions+=parseFloat(r.amount)||0;});
+  var taxableIncome=totalInc-deductions;
+  if(taxableIncome<0)taxableIncome=0;
+  var tax=window._taxByVisa(taxableIncome, visa);
+  var effectiveRate=totalInc>0?(tax/totalInc*100):0;
+  var afterTax=totalInc-tax;
+  /* Update UI fields */
+  var tp=document.getElementById("page-tax");if(!tp)return;
+  var inputs=tp.querySelectorAll("input,span,div");
+  var map={"gross":totalInc,"income":totalInc,"deductions":deductions,"taxable":taxableIncome,"tax":tax,"effective":effectiveRate.toFixed(1)+"%","after":afterTax,"gst":totalGST,"net":afterTax};
+  inputs.forEach(function(el){
+    var id=(el.id||"").toLowerCase();
+    var dt=(el.dataset?el.dataset.field:"");
+    var key=id||dt;
+    for(var k in map){
+      if(key&&key.indexOf(k)!==-1){
+        if(el.tagName==="INPUT")el.value=typeof map[k]==="number"?"$"+map[k].toLocaleString("en-AU",{minimumFractionDigits:0,maximumFractionDigits:0}):map[k];
+        else el.textContent=typeof map[k]==="number"?"$"+map[k].toLocaleString("en-AU",{minimumFractionDigits:0,maximumFractionDigits:0}):map[k];
+        break;
+      }
+    }
+  });
+};
+
+/* Override updateKPIs estTax to use visa-aware calc */
+var _pKPI36=window.updateKPIs;
+window.updateKPIs=function(){
+  if(typeof _pKPI36==="function")_pKPI36();
+  var visa=localStorage.getItem("taxmate-visa")||"citizen";
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var profit=totalInc-totalExp;
+  var estTax=profit>0?window._taxByVisa(profit,visa):0;
+  var fmt=function(n){return"$"+Math.abs(n).toLocaleString("en-AU",{minimumFractionDigits:0,maximumFractionDigits:0});};
+  /* Update dashboard Est. Tax card */
+  var dash=document.getElementById("page-dashboard");
+  if(dash){
+    dash.querySelectorAll(".kpi-card,.stat-card,[class*=kpi],.card").forEach(function(card){
+      var lbl=card.querySelector("small,span,.kpi-label");
+      if(!lbl)return;
+      var lt=lbl.textContent.toLowerCase();
+      if(lt.indexOf("impuesto")!==-1||lt.indexOf("est. tax")!==-1||lt.indexOf("tax")!==-1){
+        var valEl=lbl.nextElementSibling||card.querySelector("h2,h3,.value,div:not(:first-child)");
+        if(valEl&&valEl!==lbl)valEl.textContent=fmt(estTax);
+      }
+    });
+  }
+};
+
+},2700);
+})();
+</script>
 </html>
