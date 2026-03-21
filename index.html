@@ -2570,5 +2570,27 @@ window.updateKPIs=updateKPIs;var ds=document.createElement("style");ds.id="v2-da
 console.log("TaxMate AI v2.0 patch loaded successfully");
 })();
 </script>
+
+<script>
+/* v2.1 - Global data sync after save */
+(function(){
+function wrapSave(fnName,dataKey,renderFn){
+  var orig=window[fnName];
+  if(typeof orig!=="function")return;
+  window[fnName]=function(){
+    orig();
+    var d=JSON.parse(localStorage.getItem(dataKey)||"[]");
+    window.incomeData=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+    window.expenseData=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+    window.invoiceData=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+    if(typeof window[renderFn]==="function")window[renderFn](d);
+    setTimeout(function(){if(typeof addDeleteBtns==="function")addDeleteBtns();if(typeof updateKPIs==="function")updateKPIs();},150);
+  };
+}
+wrapSave("saveIncome","taxmate-income","renderIncome");
+wrapSave("saveExpense","taxmate-expenses","renderExpenses");
+wrapSave("createInvoice","taxmate-invoices","renderInvoices");
+})();
+</script>
 </body>
 </html>
