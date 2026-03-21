@@ -3631,9 +3631,9 @@ setTimeout(wireExports,800);
 </script>
 
 <script>
-/* v2.8: Fix tax display bug + navigate aliases + auto-calc */
+/* v2.8.1: Comprehensive tax estimator fix + navigate aliases */
 (function(){
-/* 1. Override navigate: map ai->insights, auto-calc on tax page */
+/* 1. Navigate aliases: ai->insights, auto-calc on tax page */
 var _pNav=window.navigate;
 window.navigate=function(p){
   if(p==='ai')p='insights';
@@ -3641,17 +3641,18 @@ window.navigate=function(p){
   if(p==='tax')setTimeout(function(){if(typeof calcTax==='function')calcTax();},300);
 };
 
-/* 2. Fix calcTax: "Income Tax (before offsets)" shows wrong value */
-/* Bug: displays tax+lito which is $700 even when actual tax is $0 */
-/* Fix: recalculate pre-LITO tax and correct the display */
+/* 2. Wrap calcTax to fix all Tax Estimator display issues */
 var _origCalc=window.calcTax;
 window.calcTax=function(){
   if(_origCalc)_origCalc();
+  /* Recalculate everything from localStorage for accurate display */
   var inc=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
   var exp=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
   var totalInc=0;inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+  var totalExp=0;exp.forEach(function(r){totalExp+=parseFloat(r.amount)||0;});
   var ded=0;exp.forEach(function(r){if(r.deduction==='yes'||r.deduction===true)ded+=parseFloat(r.amount)||0;});
   var ti=totalInc-ded;if(ti<0)ti=0;
+  /* Correct tax brackets */
   var preTax=0;
   if(ti<=18200)preTax=0;
   else if(ti<=45000)preTax=(ti-18200)*0.16;
@@ -3659,17 +3660,69 @@ window.calcTax=function(){
   else if(ti<=190000)preTax=31288+(ti-135000)*0.37;
   else preTax=51638+(ti-190000)*0.45;
   preTax=Math.round(preTax);
+  /* Effective LITO: only offset actual tax, not more */
+  var litoMax=0;
+  if(ti<=45000)litoMax=700;
+  else if(ti<66667)litoMax=700-(ti-45000)*0.05;
+  if(litoMax<0)litoMax=0;
+  var effectiveLITO=Math.min(litoMax,preTax);
+  var finalTax=preTax-effectiveLITO;if(finalTax<0)finalTax=0;
+  /* GST from localStorage */
+  var gstC=0,gstP=0;
+  inc.forEach(function(r){if(r.gst===true||r.gst==='true'||r.gst==='yes')gstC+=((parseFloat(r.amount)||0)/11);});
+  exp.forEach(function(r){if(r.gst===true||r.gst==='true'||r.gst==='yes')gstP+=((parseFloat(r.amount)||0)/11);});
+  gstC=Math.round(gstC);gstP=Math.round(gstP);
+  var gstNet=gstC-gstP;
+  var fmt=function(n){return "$"+Math.round(n).toLocaleString();};
+  /* Fix form fields */
   var tp=document.getElementById('page-tax');if(!tp)return;
+  var inputs=tp.querySelectorAll('input');
+  inputs.forEach(function(inp){
+    var lbl=(inp.previousElementSibling||{}).textContent||'';
+    var lb=lbl.toLowerCase();
+    if(lb.indexOf('total income')!==-1||lb.indexOf('annual income')!==-1)inp.value=totalInc.toFixed(2);
+    else if(lb.indexOf('deduct')!==-1)inp.value=ded.toFixed(2);
+    else if(lb.indexOf('gst collected')!==-1)inp.value=gstC;
+    else if(lb.indexOf('gst paid')!==-1)inp.value=gstP;
+  });
+  /* Fix .tax-row display values */
   var rows=tp.querySelectorAll('.tax-row');
   rows.forEach(function(row){
     var lbl=row.querySelector('.tax-row-label');
     var val=row.querySelector('.tax-row-val');
     if(!lbl||!val)return;
     var t=lbl.textContent.toLowerCase();
-    if(t.indexOf('income tax')!==-1&&t.indexOf('before')!==-1){
-      val.textContent='$'+preTax.toLocaleString();
-    }
+    if(t.indexOf('gross income')!==-1)val.textContent=fmt(totalInc);
+    else if(t.indexOf('deductible expense')!==-1)val.textContent='\u2212 '+fmt(ded);
+    else if(t.indexOf('taxable income')!==-1)val.textContent=fmt(ti);
+    else if(t.indexOf('income tax')!==-1&&t.indexOf('before')!==-1)val.textContent=fmt(preTax);
+    else if(t.indexOf('lito')!==-1||t.indexOf('low income')!==-1)val.textContent='\u2212 '+fmt(effectiveLITO);
+    else if(t.indexOf('estimated income tax')!==-1)val.textContent=fmt(finalTax);
+    else if(t.indexOf('gst collected')!==-1)val.textContent=fmt(gstC);
+    else if(t.indexOf('gst credit')!==-1)val.textContent='\u2212 '+fmt(gstP);
+    else if(t.indexOf('gst payable')!==-1)val.textContent=fmt(gstNet);
   });
+  /* Fix AI Recommendation */
+  var quarterly=Math.round((finalTax+gstNet)/4);
+  var tipEl=tp.querySelector('.ai-tip, [class*="tip"]');
+  if(!tipEl){
+    var allDivs=tp.querySelectorAll('div');
+    for(var i=0;i<allDivs.length;i++){
+      if(allDivs[i].textContent.indexOf('Set aside')!==-1&&allDivs[i].children.length<5){
+        tipEl=allDivs[i];break;
+      }
+    }
+  }
+  if(tipEl){
+    var nextBAS='28 April 2025';
+    var tipText='\uD83D\uDCA1 AI Recommendation\n';
+    if(quarterly<=0){
+      tipText+='No income tax is due. Your next BAS payment of '+fmt(gstNet)+' is due '+nextBAS+'.';
+    } else {
+      tipText+='Set aside '+fmt(quarterly)+' per quarter to cover your income tax. Your next BAS payment of '+fmt(gstNet)+' is due '+nextBAS+'.';
+    }
+    tipEl.textContent=tipText;
+  }
 };
 })();
 </script>
