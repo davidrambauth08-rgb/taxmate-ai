@@ -4687,5 +4687,165 @@ window.calcTax=function(){
         })();
     </script>
     </script>
+
+    <script>
+        /* v3.4: Fresh start on signup + 12-month visual overview */
+        (function(){
+            /* 1. Override signup to clear all financial data for new users */
+            var _prevAuth=window._authSubmit;
+            window._authSubmit=function(){
+                var nameEl=document.getElementById('authName');
+                var emailEl=document.getElementById('authEmail');
+                var passEl=document.getElementById('authPass');
+                var bizEl=document.getElementById('authBiz');
+                var errEl=document.getElementById('authError');
+                var btn=document.getElementById('authSubmit');
+                var LANG=localStorage.getItem('taxmate-lang')||'en';
+                var email=emailEl?emailEl.value.trim():'';
+                var pass=passEl?passEl.value:'';
+                var isSignup=!!nameEl;
+                if(!email||!pass||(isSignup&&!nameEl.value.trim())){
+                    errEl.textContent=LANG==='es'?'Por favor completa todos los campos':'Please fill all fields';
+                    errEl.style.display='block';return;}
+                if(email.indexOf('@')===-1){
+                    errEl.textContent=LANG==='es'?'Correo invalido':'Invalid email';
+                    errEl.style.display='block';return;}
+                btn.textContent=isSignup?(LANG==='es'?'Creando cuenta...':'Creating account...'):(LANG==='es'?'Iniciando sesion...':'Logging in...');
+                btn.disabled=true;
+                setTimeout(function(){
+                    var accounts=JSON.parse(localStorage.getItem('taxmate-accounts')||'{}');
+                    if(isSignup){
+                        accounts[email]={pass:btoa(pass),name:nameEl.value.trim(),biz:bizEl?bizEl.value:'Freelancer',created:new Date().toISOString()};
+                        localStorage.setItem('taxmate-accounts',JSON.stringify(accounts));
+                        /* FRESH START: Clear all financial data */
+                        localStorage.removeItem('taxmate-income');
+                        localStorage.removeItem('taxmate-expenses');
+                        localStorage.removeItem('taxmate-invoices');
+                        localStorage.removeItem('taxmate-visa');
+                        localStorage.removeItem('taxmate-checkin-dismissed');
+                        var userData={name:nameEl.value.trim(),email:email,business_type:bizEl?bizEl.value:'Freelancer',visa:'Citizen',abn:'',business_name:'',created:new Date().toISOString()};
+                        localStorage.setItem('taxmate-user',JSON.stringify(userData));
+                        document.getElementById('authModal').remove();
+                        showApp();
+                    }else{
+                        if(!accounts[email]){
+                            errEl.textContent=LANG==='es'?'Correo o contrasena incorrectos':'Invalid email or password';
+                            errEl.style.display='block';btn.textContent=LANG==='es'?'Iniciar Sesion':'Log In';btn.disabled=false;return;}
+                        if(accounts[email].pass!==btoa(pass)){
+                            errEl.textContent=LANG==='es'?'Correo o contrasena incorrectos':'Invalid email or password';
+                            errEl.style.display='block';btn.textContent=LANG==='es'?'Iniciar Sesion':'Log In';btn.disabled=false;return;}
+                        var userData={name:accounts[email].name,email:email,business_type:accounts[email].biz,visa:'Citizen',abn:'',business_name:'',created:accounts[email].created};
+                        localStorage.setItem('taxmate-user',JSON.stringify(userData));
+                        document.getElementById('authModal').remove();
+                        showApp();
+                    }
+                },800);
+            };
+
+            /* 2. 12-Month Visual Overview on Dashboard */
+            function buildMonthlyOverview(){
+                var dash=document.getElementById('page-dashboard');
+                if(!dash)return;
+                var existing=dash.querySelector('.monthly-overview-grid');
+                if(existing)existing.remove();
+                var LANG=localStorage.getItem('taxmate-lang')||'en';
+                var MONTHS_ES=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+                var MONTHS_EN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                var months=LANG==='es'?MONTHS_ES:MONTHS_EN;
+                var income=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
+                var expenses=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
+                var now=new Date();
+                var currentMonth=now.getMonth();
+                var currentYear=now.getFullYear();
+                /* Build monthly data */
+                var monthData=[];
+                for(var m=0;m<12;m++){
+                    var mInc=0,mExp=0;
+                    income.forEach(function(item){
+                        var d=new Date(item.date);
+                        if(d.getMonth()===m&&d.getFullYear()===currentYear)mInc+=parseFloat(item.amount)||0;
+                    });
+                    expenses.forEach(function(item){
+                        var d=new Date(item.date);
+                        if(d.getMonth()===m&&d.getFullYear()===currentYear)mExp+=parseFloat(item.amount)||0;
+                    });
+                    monthData.push({inc:mInc,exp:mExp,net:mInc-mExp});
+                }
+                /* Create container */
+                var wrap=document.createElement('div');
+                wrap.className='monthly-overview-grid';
+                wrap.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin:16px 0;';
+                var title=document.createElement('h3');
+                title.style.cssText='font-family:Playfair Display,serif;font-size:1.3rem;margin-bottom:4px;color:var(--text);';
+                title.textContent=LANG==='es'?'Vista Mensual '+currentYear:'Monthly View '+currentYear;
+                wrap.appendChild(title);
+                var sub=document.createElement('p');
+                sub.style.cssText='color:var(--text2);font-size:0.85rem;margin-bottom:16px;';
+                sub.textContent=LANG==='es'?'Resumen de ingresos y gastos por mes':'Income and expenses summary by month';
+                wrap.appendChild(sub);
+                var grid=document.createElement('div');
+                grid.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:12px;';
+                for(var m=0;m<12;m++){
+                    var card=document.createElement('div');
+                    var isCurrent=m===currentMonth;
+                    var hasData=monthData[m].inc>0||monthData[m].exp>0;
+                    var isFuture=m>currentMonth;
+                    card.style.cssText='border-radius:10px;padding:14px;border:1px solid '+(isCurrent?'var(--blue)':'var(--border)')+';background:'+(isCurrent?'var(--blue-light)':isFuture?'var(--surface)':'var(--surface)')+';opacity:'+(isFuture&&!hasData?'0.5':'1')+';transition:transform 0.2s;cursor:pointer;';
+                    var mName=document.createElement('div');
+                    mName.style.cssText='font-weight:700;font-size:0.85rem;color:'+(isCurrent?'var(--blue)':'var(--text)')+';margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;';
+                    mName.innerHTML=months[m]+(isCurrent?' <span style="font-size:0.65rem;background:var(--blue);color:#fff;padding:2px 6px;border-radius:10px;">'+(LANG==='es'?'ACTUAL':'NOW')+'</span>':'');
+                    card.appendChild(mName);
+                    if(hasData){
+                        var incRow=document.createElement('div');
+                        incRow.style.cssText='display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:3px;';
+                        incRow.innerHTML='<span style="color:var(--green);">&#9650; '+(LANG==='es'?'Ing':'Inc')+'</span><span style="font-weight:600;color:var(--green);">$'+monthData[m].inc.toLocaleString()+'</span>';
+                        card.appendChild(incRow);
+                        var expRow=document.createElement('div');
+                        expRow.style.cssText='display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:3px;';
+                        expRow.innerHTML='<span style="color:var(--red);">&#9660; '+(LANG==='es'?'Gas':'Exp')+'</span><span style="font-weight:600;color:var(--red);">$'+monthData[m].exp.toLocaleString()+'</span>';
+                        card.appendChild(expRow);
+                        var netRow=document.createElement('div');
+                        netRow.style.cssText='display:flex;justify-content:space-between;font-size:0.78rem;border-top:1px solid var(--border);padding-top:4px;margin-top:4px;';
+                        var netColor=monthData[m].net>=0?'var(--green)':'var(--red)';
+                        netRow.innerHTML='<span style="font-weight:700;">Net</span><span style="font-weight:700;color:'+netColor+';">$'+monthData[m].net.toLocaleString()+'</span>';
+                        card.appendChild(netRow);
+                    }else{
+                        var empty=document.createElement('div');
+                        empty.style.cssText='text-align:center;color:var(--text2);font-size:0.75rem;padding:8px 0;';
+                        empty.textContent=isFuture?(LANG==='es'?'Pendiente':'Upcoming'):(LANG==='es'?'Sin datos':'No data');
+                        card.appendChild(empty);
+                    }
+                    grid.appendChild(card);
+                }
+                wrap.appendChild(grid);
+                /* Insert after the main stat cards */
+                var statCards=dash.querySelectorAll('.stat-card,[class*="summary"]');
+                var insertRef=null;
+                if(statCards.length>0){
+                    var lastStat=statCards[statCards.length-1];
+                    insertRef=lastStat.parentElement.nextSibling;
+                }
+                if(insertRef){
+                    dash.insertBefore(wrap,insertRef);
+                }else{
+                    var firstChild=dash.children[2]||dash.children[1];
+                    if(firstChild)dash.insertBefore(wrap,firstChild);
+                    else dash.appendChild(wrap);
+                }
+            }
+
+            /* 3. Hook into navigate to show monthly overview on dashboard */
+            var _pNav34=window.navigate;
+            window.navigate=function(page){
+                _pNav34(page);
+                setTimeout(function(){
+                    if(!page||page==='dashboard')buildMonthlyOverview();
+                },400);
+            };
+            /* Run on initial load */
+            setTimeout(function(){buildMonthlyOverview();},1500);
+        })();
+    </script>
+    </script>
 </body>
 </html>
