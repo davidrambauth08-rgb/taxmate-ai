@@ -1714,8 +1714,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </select>
           </div>
           <div style="display:flex;gap:8px;">
-            <button class="btn btn-outline btn-sm" onclick="showToast('📊 CSV export coming in Phase 2')">⬇ Export CSV</button>
-            <button class="btn btn-primary btn-sm" onclick="showToast('📄 PDF report generated!')">⬇ Export PDF</button>
+            <button class="btn btn-outline btn-sm">⬇ Export CSV</button>
+            <button class="btn btn-primary btn-sm">⬇ Export PDF</button>
           </div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
@@ -3617,10 +3617,10 @@ function wireExports(){
   btns.forEach(function(b){
     var t=b.textContent;
     if(t.indexOf('Export CSV')>-1){
-      b.onclick=function(e){e.preventDefault();exportReportsCSV();};
+      b.removeAttribute('onclick');b.onclick=function(e){e.preventDefault();exportReportsCSV();};
     }
     if(t.indexOf('Export PDF')>-1){
-      b.onclick=function(e){e.preventDefault();exportReportsPDF();};
+      b.removeAttribute('onclick');b.onclick=function(e){e.preventDefault();exportReportsPDF();};
     }
   });
 }
