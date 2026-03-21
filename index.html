@@ -2526,8 +2526,9 @@ document.addEventListener('DOMContentLoaded',function(){if(currentTheme==='dark'
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').then(function(r){console.log('SW registered:',r.scope);}).catch(function(e){console.log('SW failed:',e);});});}
 
 
+
 <script>
-/* === TaxMate AI v1.1 Patch: Persistence, Delete, Export, Validation === */
+/* TaxMate AI v1.1 - Persistence, Delete, Export, Dark Mode Fix */
 (function(){
   try { incomeData = JSON.parse(localStorage.getItem("taxmate-income")) || []; } catch(e){ incomeData = []; }
   try { expenseData = JSON.parse(localStorage.getItem("taxmate-expenses")) || []; } catch(e){ expenseData = []; }
@@ -2549,6 +2550,15 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
   }
   updateKPIs();
   window._updateKPIs = updateKPIs;
+
+  function makeDelBtn(text, handler){
+    var btn = document.createElement("button");
+    btn.className = "del-btn";
+    btn.textContent = text;
+    btn.style.cssText = "background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;";
+    btn.onclick = handler;
+    return btn;
+  }
   window.deleteIncome = function(idx){
     if(!confirm("Delete this income entry?")) return;
     incomeData.splice(idx, 1);
@@ -2570,6 +2580,7 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
     renderInvoices(); updateKPIs();
     showToast("Invoice deleted","info");
   };
+
   window.exportCSV = function(type){
     var data, headers, filename;
     if(type==="income"){
@@ -2613,12 +2624,12 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
     origCreateInvoice.apply(this, arguments);
     updateKPIs();
   };
+
   function addExportBtn(pageId, type){
     var page = document.getElementById(pageId);
     if(!page) return;
-    var existing = page.querySelector(".export-csv-btn");
-    if(existing) return;
-    var header = page.querySelector("h2") || page.querySelector("header") || page.firstElementChild;
+    if(page.querySelector(".export-csv-btn")) return;
+    var header = page.querySelector("h2") || page.firstElementChild;
     if(!header) return;
     var btn = document.createElement("button");
     btn.className = "export-csv-btn";
@@ -2630,48 +2641,40 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
   addExportBtn("page-income","income");
   addExportBtn("page-expenses","expenses");
   addExportBtn("page-invoices","invoices");
-  var origRenderIncome = window.renderIncome;
-  window.renderIncome = function(){
-    origRenderIncome.apply(this, arguments);
-    var tbody = document.getElementById("incomeTableBody") || document.querySelector("#page-income tbody");
+
+  function addDeleteBtns(tableSelector, deleteFn){
+    var tbody = document.querySelector(tableSelector);
     if(!tbody) return;
     var rows = tbody.querySelectorAll("tr");
     rows.forEach(function(row, idx){
       if(row.querySelector(".del-btn")) return;
       var td = document.createElement("td");
-      td.innerHTML = '<button class="del-btn" onclick="deleteIncome('+idx+')" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Delete<\/button>';
+      var btn = makeDelBtn("Delete", function(){ deleteFn(idx); });
+      td.appendChild(btn);
       row.appendChild(td);
     });
+  }
+
+  var origRenderIncome = window.renderIncome;
+  window.renderIncome = function(){
+    origRenderIncome.apply(this, arguments);
+    addDeleteBtns("#page-income tbody", deleteIncome);
   };
   var origRenderExpenses = window.renderExpenses;
   window.renderExpenses = function(){
     origRenderExpenses.apply(this, arguments);
-    var tbody = document.getElementById("expenseTableBody") || document.querySelector("#page-expenses tbody");
-    if(!tbody) return;
-    var rows = tbody.querySelectorAll("tr");
-    rows.forEach(function(row, idx){
-      if(row.querySelector(".del-btn")) return;
-      var td = document.createElement("td");
-      td.innerHTML = '<button class="del-btn" onclick="deleteExpense('+idx+')" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Delete<\/button>';
-      row.appendChild(td);
-    });
+    addDeleteBtns("#page-expenses tbody", deleteExpense);
   };
   var origRenderInvoices = window.renderInvoices;
   window.renderInvoices = function(){
     origRenderInvoices.apply(this, arguments);
-    var tbody = document.getElementById("invoiceTableBody") || document.querySelector("#page-invoices tbody");
-    if(!tbody) return;
-    var rows = tbody.querySelectorAll("tr");
-    rows.forEach(function(row, idx){
-      if(row.querySelector(".del-btn")) return;
-      var td = document.createElement("td");
-      td.innerHTML = '<button class="del-btn" onclick="deleteInvoice('+idx+')" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Delete<\/button>';
-      row.appendChild(td);
-    });
+    addDeleteBtns("#page-invoices tbody", deleteInvoice);
   };
+
   if(incomeData.length) renderIncome();
   if(expenseData.length) renderExpenses();
   if(invoiceData.length) renderInvoices();
+
   var origSetTheme = window.setTheme;
   window.setTheme = function(t){
     origSetTheme.apply(this, arguments);
@@ -2681,8 +2684,9 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
   };
   var savedTheme = localStorage.getItem("taxmate-theme");
   if(savedTheme) setTheme(savedTheme);
-  console.log("TaxMate AI v1.1 patch loaded. Inc:"+incomeData.length+" Exp:"+expenseData.length+" Inv:"+invoiceData.length);
+
+  console.log("TaxMate AI v1.1 loaded. Inc:"+incomeData.length+" Exp:"+expenseData.length+" Inv:"+invoiceData.length);
 })();
-<\/script>
+</script>
 </body>
 </html>
