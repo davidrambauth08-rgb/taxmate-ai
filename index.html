@@ -2971,5 +2971,101 @@ window.navigate=function(p){oN(p);setTimeout(function(){
 setTimeout(function(){updateDashKPIChanges();updateInvest();updateReminders();calcTax();fixReports();fixFilters();},600);
 })();
 </script>
+<script>
+/* v2.3.1 — Fix selectors: calcTax uses .tax-row/.tax-row-val, fixReports uses .kpi-label */
+(function(){
+var fmt=function(v){return "$"+Math.abs(Math.round(v)).toLocaleString("en-AU");};
+var LS=function(k){return JSON.parse(localStorage.getItem(k)||"[]");};
+
+/* Override calcTax with correct .tax-row selectors */
+window.calcTax=function(){
+  var inc=LS("taxmate-income"),exp=LS("taxmate-expenses");
+  var totalInc=0;inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+  var totalExp=0;exp.forEach(function(r){totalExp+=parseFloat(r.amount)||0;});
+  var gstC=0,gstP=0;
+  inc.forEach(function(r){if(r.gst==="yes"||r.gst===true)gstC+=((parseFloat(r.amount)||0)/11);});
+  exp.forEach(function(r){if(r.gst==="yes"||r.gst===true)gstP+=((parseFloat(r.amount)||0)/11);});
+  var ded=0;exp.forEach(function(r){if(r.deduction==="yes"||r.deduction===true)ded+=parseFloat(r.amount)||0;});
+  var ti=totalInc-ded;if(ti<0)ti=0;
+  var tax=0;
+  if(ti<=18200)tax=0;
+  else if(ti<=45000)tax=(ti-18200)*0.16;
+  else if(ti<=135000)tax=4288+(ti-45000)*0.30;
+  else if(ti<=190000)tax=31288+(ti-135000)*0.37;
+  else tax=51638+(ti-190000)*0.45;
+  var lito=0;
+  if(ti<=45000)lito=700;else if(ti<66667)lito=700-(ti-45000)*0.05;
+  if(lito<0)lito=0;tax=tax-lito;if(tax<0)tax=0;
+  var gstNet=gstC-gstP;
+  /* Update inputs */
+  var tp=document.getElementById("page-tax");if(!tp)return;
+  var inputs=tp.querySelectorAll("input");
+  inputs.forEach(function(inp){
+    var lbl=(inp.previousElementSibling?inp.previousElementSibling.textContent:"").toLowerCase();
+    if(lbl.indexOf("total income")!==-1||lbl.indexOf("annual income")!==-1)inp.value=totalInc.toFixed(2);
+    else if(lbl.indexOf("deduction")!==-1)inp.value=ded.toFixed(2);
+  });
+  /* Update .tax-row values */
+  var rows=tp.querySelectorAll(".tax-row");
+  rows.forEach(function(row){
+    var label=row.children[0]?row.children[0].textContent.trim().toLowerCase():"";
+    var val=row.querySelector(".tax-row-val");if(!val)return;
+    if(label.indexOf("gross income")!==-1)val.textContent=fmt(totalInc);
+    else if(label.indexOf("deductible expense")!==-1)val.textContent="\u2212 "+fmt(ded);
+    else if(label.indexOf("taxable income")!==-1)val.textContent=fmt(ti);
+    else if(label.indexOf("income tax")!==-1&&label.indexOf("before")!==-1)val.textContent=fmt(tax+lito);
+    else if(label.indexOf("lito")!==-1||label.indexOf("low income")!==-1)val.textContent="\u2212 "+fmt(lito);
+    else if(label.indexOf("estimated income tax")!==-1)val.textContent=fmt(tax);
+    else if(label.indexOf("gst collected")!==-1)val.textContent=fmt(gstC);
+    else if(label.indexOf("gst credit")!==-1)val.textContent="\u2212 "+fmt(gstP);
+    else if(label.indexOf("gst payable")!==-1)val.textContent=fmt(gstNet);
+  });
+};
+
+/* Override fixReports with correct .kpi-label selectors */
+function fixReports(){
+  var rp=document.getElementById("page-reports");if(!rp)return;
+  var inc=LS("taxmate-income"),exp=LS("taxmate-expenses");
+  var totalInc=0,totalExp=0;
+  inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+  exp.forEach(function(r){totalExp+=parseFloat(r.amount)||0;});
+  var net=totalInc-totalExp;
+  /* Update summary cards via .kpi-label */
+  var cards=rp.querySelectorAll(".card");
+  cards.forEach(function(card){
+    var lbl=card.querySelector(".kpi-label");if(!lbl)return;
+    var t=lbl.textContent.toLowerCase();
+    var val=lbl.nextElementSibling;if(!val)return;
+    if(t.indexOf("total income")!==-1)val.textContent=fmt(totalInc);
+    else if(t.indexOf("total expense")!==-1)val.textContent=fmt(totalExp);
+    else if(t.indexOf("net")!==-1)val.textContent=fmt(net);
+  });
+  /* Monthly table */
+  var tbody=rp.querySelector("tbody");if(!tbody)return;
+  var months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var md={};
+  inc.forEach(function(r){try{var d=new Date(r.date+"T00:00:00");var k=d.getFullYear()+"-"+d.getMonth();
+    if(!md[k])md[k]={y:d.getFullYear(),m:d.getMonth(),inc:0,exp:0};md[k].inc+=parseFloat(r.amount)||0;}catch(e){}});
+  exp.forEach(function(r){try{var d=new Date(r.date+"T00:00:00");var k=d.getFullYear()+"-"+d.getMonth();
+    if(!md[k])md[k]={y:d.getFullYear(),m:d.getMonth(),inc:0,exp:0};md[k].exp+=parseFloat(r.amount)||0;}catch(e){}});
+  var sorted=Object.values(md).sort(function(a,b){return a.y===b.y?a.m-b.m:a.y-b.y;});
+  tbody.innerHTML="";
+  if(sorted.length===0){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#94A3B8">No data yet.</td></tr>';return;}
+  sorted.forEach(function(row){
+    var tr=document.createElement("tr");var n=row.inc-row.exp;
+    tr.innerHTML='<td style="padding:10px 12px">'+months[row.m]+" "+row.y+'</td><td style="padding:10px 12px;color:#22C55E">'+fmt(row.inc)+'</td><td style="padding:10px 12px;color:#EF4444">'+fmt(row.exp)+'</td><td style="padding:10px 12px;color:'+(n>=0?"#22C55E":"#EF4444")+'">'+fmt(n)+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+/* Re-hook navigate for fixed functions */
+var oN=window.navigate;
+window.navigate=function(p){oN(p);setTimeout(function(){
+  if(p==="tax")calcTax();
+  if(p==="reports")fixReports();
+},250);};
+setTimeout(function(){calcTax();fixReports();},700);
+})();
+</script>
 </body>
 </html>
