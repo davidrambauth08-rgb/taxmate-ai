@@ -2630,8 +2630,11 @@ tbody.appendChild(tr);
 });
 if(typeof addDeleteBtns==="function")addDeleteBtns();updateKPIs();
 };
-var origNav=window.navigate;if(typeof origNav==="function"){window.navigate=function(p){origNav(p);setTimeout(updateKPIs,100);};}
+var origNav=window.navigate;if(typeof origNav==="function"){window.navigate=function(p){origNav(p);setTimeout(function(){updateKPIs();hookSearch();},100);};}
 setTimeout(updateKPIs,300);
+
+function hookSearch(){var tbs=document.querySelectorAll(".v2-toolbar input[type=text]");for(var i=0;i<tbs.length;i++){var inp=tbs[i];if(inp._sh)continue;inp._sh=true;inp.addEventListener("input",function(){var val=this.value.toLowerCase();var pg=this.closest("[id^=page-]");if(!pg)return;var rows=pg.querySelectorAll("table tbody tr");for(var j=0;j<rows.length;j++){rows[j].style.display=(val&&rows[j].textContent.toLowerCase().indexOf(val)===-1)?"none":"";}});}}
+hookSearch();
 })();
 </script>
 </body>
