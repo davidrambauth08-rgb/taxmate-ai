@@ -2637,5 +2637,108 @@ function hookSearch(){var tbs=document.querySelectorAll(".v2-toolbar input[type=
 hookSearch();
 })();
 </script>
+
+<script>
+/* v2.2 Dashboard Override — real localStorage data */
+(function(){
+var fmt=function(v){return "$"+Math.abs(Math.round(v)).toLocaleString("en-AU");};
+window.updateDashboardKPIs=function(){
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var ti=inc.reduce(function(s,r){return s+parseFloat(r.amount||0);},0);
+  var te=exp.reduce(function(s,r){return s+parseFloat(r.amount||0);},0);
+  var np=ti-te;
+  var et=np>0?np*0.30:0;
+  var el;
+  el=document.getElementById("kpiIncomeValue");if(el)el.textContent=fmt(ti);
+  el=document.getElementById("kpiExpenseValue");if(el)el.textContent=fmt(te);
+  el=document.getElementById("kpiTaxValue");if(el)el.textContent=fmt(et);
+  el=document.getElementById("kpiProfitValue");if(el)el.textContent=fmt(np);
+};
+function updateProductivitySnapshot(){
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var ti=inc.reduce(function(s,r){return s+parseFloat(r.amount||0);},0);
+  var te=exp.reduce(function(s,r){return s+parseFloat(r.amount||0);},0);
+  var np=ti-te;
+  var dates=inc.map(function(r){return r.date;}).concat(exp.map(function(r){return r.date;})).filter(Boolean);
+  var months=1;
+  if(dates.length>0){var sorted=dates.sort();var f=new Date(sorted[0]);var l=new Date(sorted[sorted.length-1]);months=Math.max(1,Math.round((l-f)/(30*24*60*60*1000))+1);}
+  var ma=np/months;var ap=ma*12;var mm=82000;
+  var vs=mm>0?((ap-mm)/mm*100):0;var gap=mm-ap;
+  var dash=document.getElementById("page-dashboard");
+  if(!dash||!dash.children[2])return;
+  var sg=dash.children[2].children[1];
+  if(!sg||!sg.children[0])return;
+  var b=sg.children;
+  if(b[0]){b[0].children[1].textContent=fmt(ap);b[0].children[2].textContent="Based on "+months+"-month run rate";}
+  if(b[1]){b[1].children[1].textContent=fmt(ma);b[1].children[2].textContent="Net after expenses";}
+  if(b[3]){
+    var sign=vs>=0?"+":"\u2212";
+    b[3].children[1].textContent=sign+Math.abs(Math.round(vs))+"%";
+    if(gap>0){b[3].children[2].textContent=fmt(gap)+" gap \u00b7 see tips";}else{b[3].children[2].textContent="Above market!";}
+    if(vs>=0){b[3].style.background="#EAFAF1";b[3].style.borderColor="#A3D9A5";}else{b[3].style.background="#FEF0EA";b[3].style.borderColor="#F9C4AD";}
+  }
+}
+window.initDashboardCharts=function(){
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var mI={},mE={},aM={};
+  inc.forEach(function(r){if(!r.date)return;var m=r.date.substring(0,7);mI[m]=(mI[m]||0)+parseFloat(r.amount||0);aM[m]=true;});
+  exp.forEach(function(r){if(!r.date)return;var m=r.date.substring(0,7);mE[m]=(mE[m]||0)+parseFloat(r.amount||0);aM[m]=true;});
+  var sm=Object.keys(aM).sort();
+  if(sm.length===0){var now=new Date();sm=[now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")];}
+  var mn=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var labels=sm.map(function(m){var p=m.split("-");return mn[parseInt(p[1])-1]+" "+p[0].substring(2);});
+  var iD=sm.map(function(m){return mI[m]||0;});
+  var eD=sm.map(function(m){return mE[m]||0;});
+  Chart.helpers.each(Chart.instances,function(inst){if(inst.canvas.id==="incExpChart"||inst.canvas.id==="expCatChart")inst.destroy();});
+  var c1=document.getElementById("incExpChart");
+  var c2=document.getElementById("expCatChart");
+  if(c1){c1.parentElement.style.maxHeight="350px";c1.style.maxHeight="320px";
+    new Chart(c1.getContext("2d"),{type:"bar",data:{labels:labels,datasets:[{label:"Income",data:iD,backgroundColor:"#22C55E"},{label:"Expenses",data:eD,backgroundColor:"#EF4444"}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:"top"}},scales:{y:{beginAtZero:true,ticks:{callback:function(v){return "$"+v.toLocaleString();}}}}}});
+  }
+  if(c2){c2.parentElement.style.maxHeight="350px";c2.style.maxHeight="320px";
+    var cT={};exp.forEach(function(r){var cat=r.category||"Uncategorized";cT[cat]=(cT[cat]||0)+parseFloat(r.amount||0);});
+    var cats=Object.keys(cT);var cV=cats.map(function(c){return cT[c];});
+    var cols=["#3B82F6","#22C55E","#F59E0B","#EF4444","#8B5CF6","#EC4899","#14B8A6","#F97316"];
+    if(cats.length===0){cats=["No expenses yet"];cV=[1];cols=["#E5E7EB"];}
+    new Chart(c2.getContext("2d"),{type:"doughnut",data:{labels:cats,datasets:[{data:cV,backgroundColor:cols.slice(0,cats.length)}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:"bottom"}}}});
+  }
+};
+window.renderRecentTransactions=function(){
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var all=[];
+  inc.forEach(function(r){all.push({date:r.date||"",desc:r.source||r.memo||"Income",cat:r.category||"Income",amount:parseFloat(r.amount||0),status:r.payment_status||"received",type:"income"});});
+  exp.forEach(function(r){all.push({date:r.date||"",desc:r.descr||r.description||"Expense",cat:r.category||"Expense",amount:parseFloat(r.amount||0),status:r.receipt?"Receipt":"No receipt",type:"expense"});});
+  all.sort(function(a,b){return b.date.localeCompare(a.date);});
+  all=all.slice(0,5);
+  var dash=document.getElementById("page-dashboard");
+  if(!dash)return;
+  var tbody=dash.children[5]?dash.children[5].querySelector("tbody"):null;
+  if(!tbody)return;
+  tbody.innerHTML="";
+  if(all.length===0){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:20px;color:#94A3B8">No transactions yet.</td></tr>';return;}
+  var months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  all.forEach(function(t){
+    var tr=document.createElement("tr");
+    var ds=t.date;try{var d=new Date(t.date+"T00:00:00");ds=d.getDate()+" "+months[d.getMonth()];}catch(e){}
+    var ac=t.type==="income"?"#22C55E":"#EF4444";
+    var as=t.type==="income"?"+":"-";
+    var sl=t.type==="income"?(t.status==="paid"||t.status==="received"?"Paid":"Pending"):(t.status==="Receipt"?"Deductible":"No receipt");
+    var sc=t.type==="income"?"#22C55E":"#3B82F6";
+    tr.innerHTML='<td style="padding:10px 12px;color:#64748B">'+ds+'</td><td style="padding:10px 12px;font-weight:500">'+t.desc+'</td><td style="padding:10px 12px"><span style="background:#F1F5F9;padding:2px 8px;border-radius:6px;font-size:12px">'+t.cat+'</span></td><td style="padding:10px 12px;font-weight:600;color:'+ac+'">'+as+"$"+t.amount.toLocaleString()+'</td><td style="padding:10px 12px;color:'+sc+'">'+sl+"</td>";
+    tbody.appendChild(tr);
+  });
+};
+window.initDashboard=function(){updateDashboardKPIs();updateProductivitySnapshot();initDashboardCharts();renderRecentTransactions();};
+var origNav2=window.navigate;
+if(typeof origNav2==="function"){
+  window.navigate=function(p){origNav2(p);if(p==="dashboard")setTimeout(initDashboard,200);};
+}
+setTimeout(initDashboard,500);
+})();
+</script>
 </body>
 </html>
