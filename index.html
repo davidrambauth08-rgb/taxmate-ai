@@ -5558,77 +5558,51 @@ renderAISection();
 },3000);
 })();
 </script>\n<script>
-/* v3.8.1: Fix AI dashboard rendering — Unicode + styling */
+/* v3.8.1: Fix AI tips rendering */
 (function(){
 setTimeout(function(){
-
 var lang=(localStorage.getItem("taxmate-lang")||"en")==="es";
-
-/* Fix heading visibility */
 var sec=document.getElementById("ai-dashboard-section");
-if(!sec) return;
+if(!sec)return;
 var h3=sec.querySelector("h3");
-if(h3) h3.style.cssText="margin:0;color:#e2e8f0;font-size:16px;";
-
-/* Rebuild generateTips with safe chars */
-window._generateTips=function(){
-  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
-  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
-  var visa=localStorage.getItem("taxmate-visa")||"citizen";
-  var taxReg=localStorage.getItem("taxmate-taxreg")||"abn";
-  var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
-  var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
-  var profit=totalInc-totalExp;
-  var deductions=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
-  var taxableIncome=totalInc-deductions;if(taxableIncome<0)taxableIncome=0;
-  var estTax=typeof _taxByVisa==="function"?_taxByVisa(taxableIncome,visa):0;
-  var tips=[];
-  var v=visa.toLowerCase();
-  var isResident=v!=="other"&&v!=="whm";
-  var fmt=function(n){return"$"+Math.round(n).toLocaleString("en-AU");};
-
-  if(isResident&&taxableIncome>0&&taxableIncome<18200){
-    var gap=18200-taxableIncome;
-    tips.push({icon:String.fromCodePoint(0x1F6E1),title:lang?"Dentro del umbral libre":"Within tax-free threshold",text:lang?"Te faltan "+fmt(gap)+" para empezar a pagar tax.":"You have "+fmt(gap)+" left before you start paying tax.",type:"success"});
-  }
-  if(isResident&&taxableIncome>18200&&taxableIncome<45000){
-    var toNext=45000-taxableIncome;
-    tips.push({icon:String.fromCodePoint(0x26A0),title:lang?"Proximo bracket fiscal":"Next tax bracket",text:lang?fmt(toNext)+" mas y pasas al bracket del 30%. Actual: 16%.":fmt(toNext)+" more and you enter the 30% bracket. Current: 16%.",type:"warning"});
-  }
-  if(taxReg==="abn"){
-    var now=new Date();var m=now.getMonth();
-    if(m===9||m===0||m===3||m===6){
-      tips.push({icon:String.fromCodePoint(0x1F4C5),title:lang?"Recordatorio BAS":"BAS Reminder",text:lang?"Este mes vence tu BAS trimestral. Declarar tu GST.":"Your quarterly BAS is due this month. Lodge your GST.",type:"warning"});
-    }
-    var quarterTax=estTax/4;
-    if(quarterTax>0) tips.push({icon:String.fromCodePoint(0x1F4B0),title:lang?"Reserva para impuestos":"Tax Reserve",text:lang?"Deberias apartar ~"+fmt(quarterTax)+" por trimestre para impuestos.":"Set aside ~"+fmt(quarterTax)+" per quarter for tax.",type:"info"});
-  }
-  if(taxReg==="tfn") tips.push({icon:String.fromCodePoint(0x2139),title:lang?"Tax retenido (PAYG)":"Tax Withheld (PAYG)",text:lang?"Tu empleador retiene ~"+fmt(estTax)+" anual. Verifica tu payslip.":"Your employer withholds ~"+fmt(estTax)+" annually. Check your payslip.",type:"info"});
-  if(taxReg==="abn"&&totalInc>60000&&totalInc<75000) tips.push({icon:String.fromCodePoint(0x1F4CA),title:lang?"Umbral GST cerca":"GST Threshold Near",text:lang?"Tu ingreso esta cerca de $75K. Si lo superas, DEBES registrarte en GST.":"Your income is near $75K. If you exceed it, you MUST register for GST.",type:"warning"});
-  if(deductions===0&&totalExp>0) tips.push({icon:String.fromCodePoint(0x1F4A1),title:lang?"Deducciones no marcadas":"No Deductions Flagged",text:lang?"Tenes gastos pero ninguno marcado como deducible. Revisa para ahorrar tax.":"You have expenses but none marked deductible. Review to save on tax.",type:"info"});
-  if(v==="student") tips.push({icon:String.fromCodePoint(0x1F393),title:lang?"Visa de estudiante":"Student Visa",text:lang?"Como estudiante residente, tenes el threshold de $18,200. Podes trabajar hasta 48hs/quincena.":"As a resident student, you get the $18,200 threshold. Can work up to 48hrs/fortnight.",type:"info"});
-  if(profit>0&&totalInc>0){
-    var savingsRate=((profit/totalInc)*100).toFixed(0);
-    tips.push({icon:String.fromCodePoint(0x1F31F),title:lang?"Tasa de ahorro: "+savingsRate+"%":"Savings Rate: "+savingsRate+"%",text:lang?"Estas ahorrando "+savingsRate+"% de tus ingresos. "+(parseInt(savingsRate)>30?"Excelente!":"Intenta llegar al 30%."):"Saving "+savingsRate+"% of income. "+(parseInt(savingsRate)>30?"Excellent!":"Aim for 30%."),type:parseInt(savingsRate)>30?"success":"info"});
-  }
-  return tips;
-};
-
-/* Re-render tips */
+if(h3)h3.style.cssText="margin:0;color:#e2e8f0;font-size:16px;";
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var visa=localStorage.getItem("taxmate-visa")||"citizen";
+var taxReg=localStorage.getItem("taxmate-taxreg")||"abn";
+var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var deductions=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var taxableIncome=totalInc-deductions;if(taxableIncome<0)taxableIncome=0;
+var estTax=typeof _taxByVisa==="function"?_taxByVisa(taxableIncome,visa):0;
+var fmt=function(n){return"$"+Math.round(n).toLocaleString("en-AU");};
+var v=visa.toLowerCase();
+var isResident=v!=="other"&&v!=="whm";
+var tips=[];
+if(isResident&&taxableIncome>18200&&taxableIncome<45000){
+var toNext=45000-taxableIncome;
+tips.push({icon:String.fromCodePoint(0x26A0),title:lang?"Proximo bracket fiscal":"Next tax bracket",text:lang?fmt(toNext)+" mas y pasas al bracket del 30%. Actual: 16%.":fmt(toNext)+" more to 30% bracket. Current: 16%.",type:"warning"});
+}
+if(taxReg==="abn"){
+var qTax=estTax/4;
+if(qTax>0)tips.push({icon:String.fromCodePoint(0x1F4B0),title:lang?"Reserva para impuestos":"Tax Reserve",text:lang?"Deberias apartar ~"+fmt(qTax)+" por trimestre.":"Set aside ~"+fmt(qTax)+" per quarter.",type:"info"});
+}
+if(deductions===0&&totalExp>0)tips.push({icon:String.fromCodePoint(0x1F4A1),title:lang?"Deducciones no marcadas":"No Deductions",text:lang?"Tenes gastos sin marcar como deducible.":"Expenses not marked deductible.",type:"info"});
+if(v==="student")tips.push({icon:String.fromCodePoint(0x1F393),title:lang?"Visa de estudiante":"Student Visa",text:lang?"Threshold de $18,200. Podes trabajar 48hs/quincena.":"$18,200 threshold. 48hrs/fortnight.",type:"info"});
+var profit=totalInc-totalExp;
+if(profit>0&&totalInc>0){
+var sr=((profit/totalInc)*100).toFixed(0);
+tips.push({icon:String.fromCodePoint(0x1F31F),title:lang?"Tasa de ahorro: "+sr+"%":"Savings: "+sr+"%",text:lang?"Ahorrando "+sr+"%. "+(parseInt(sr)>30?"Excelente!":"Intenta 30%."):"Saving "+sr+"%. "+(parseInt(sr)>30?"Excellent!":"Aim for 30%."),type:parseInt(sr)>30?"success":"info"});
+}
 var tipsC=document.getElementById("ai-tips-container");
 if(tipsC){
-  var tips=window._generateTips();
-  tipsC.innerHTML=tips.map(function(t){
-    var bg=t.type==="success"?"#064e3b":t.type==="warning"?"#78350f":"#1e3a5f";
-    var border=t.type==="success"?"#10b981":t.type==="warning"?"#f59e0b":"#3b82f6";
-    return '<div style="background:'+bg+';border-left:4px solid '+border+';border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;">'+
-      '<span style="font-size:20px;">'+t.icon+'</span>'+
-      '<div><strong style="color:#fff;font-size:13px;">'+t.title+'</strong>'+
-      '<p style="color:#d1d5db;font-size:12px;margin:4px 0 0;">'+t.text+'</p></div></div>';
-  }).join("");
+tipsC.innerHTML=tips.map(function(t){
+var bg=t.type==="success"?"#064e3b":t.type==="warning"?"#78350f":"#1e3a5f";
+var bd=t.type==="success"?"#10b981":t.type==="warning"?"#f59e0b":"#3b82f6";
+return '<div style="background:'+bg+';border-left:4px solid '+bd+';border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;"><span style="font-size:20px;">'+t.icon+'<\/span><div><strong style="color:#fff;font-size:13px;">'+t.title+'<\/strong><p style="color:#d1d5db;font-size:12px;margin:4px 0 0;">'+t.text+'<\/p><\/div><\/div>';
+}).join("");
 }
-
 },3200);
 })();
-<\/script>
+</script>
 </html>
