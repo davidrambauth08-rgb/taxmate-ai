@@ -2740,5 +2740,236 @@ if(typeof origNav2==="function"){
 setTimeout(initDashboard,500);
 })();
 </script>
+<script>
+/* v2.3 — Fix remaining: dashboard %, investment, reminders, tax estimator, reports, invoices, filters */
+(function(){
+var fmt=function(v){return "$"+Math.abs(Math.round(v)).toLocaleString("en-AU");};
+var LS=function(k){return JSON.parse(localStorage.getItem(k)||"[]");};
+var now=new Date();var cm=now.getMonth();var cy=now.getFullYear();
+
+/* 1. Dashboard KPI vs-last-month */
+function updateDashKPIChanges(){
+  var inc=LS("taxmate-income"),exp=LS("taxmate-expenses");
+  function sumMonth(arr,m,y){var t=0;arr.forEach(function(r){
+    try{var d=new Date(r.date+"T00:00:00");if(d.getMonth()===m&&d.getFullYear()===y)t+=parseFloat(r.amount)||0;}catch(e){}
+  });return t;}
+  var incThis=sumMonth(inc,cm,cy),incLast=sumMonth(inc,cm-1<0?11:cm-1,cm-1<0?cy-1:cy);
+  var expThis=sumMonth(exp,cm,cy),expLast=sumMonth(exp,cm-1<0?11:cm-1,cm-1<0?cy-1:cy);
+  var dash=document.getElementById("page-dashboard");if(!dash)return;
+  var kpis=dash.querySelector(".kpi-grid");if(!kpis)return;
+  var cards=kpis.querySelectorAll(".kpi-card");
+  function setPct(card,cur,prev){
+    var ch=card.querySelector(".kpi-change");if(!ch)return;
+    if(prev===0){ch.textContent=cur>0?"▲ New":"--";ch.style.color=cur>0?"var(--green)":"var(--text2)";return;}
+    var pct=((cur-prev)/prev*100).toFixed(1);
+    ch.textContent=(pct>=0?"▲ ":"▼ ")+Math.abs(pct)+"% vs last month";
+    ch.style.color=pct>=0?"var(--green)":"var(--red)";
+  }
+  if(cards[0])setPct(cards[0],incThis,incLast);
+  if(cards[1])setPct(cards[1],expThis,expLast);
+  var netThis=incThis-expThis,netLast=incLast-expLast;
+  if(cards[2])setPct(cards[2],netThis,netLast);
+}
+
+/* 2. Investment suggestion */
+function updateInvest(){
+  var inc=LS("taxmate-income"),exp=LS("taxmate-expenses");
+  var mInc=0,mExp=0;
+  inc.forEach(function(r){try{var d=new Date(r.date+"T00:00:00");if(d.getMonth()===cm&&d.getFullYear()===cy)mInc+=parseFloat(r.amount)||0;}catch(e){}});
+  exp.forEach(function(r){try{var d=new Date(r.date+"T00:00:00");if(d.getMonth()===cm&&d.getFullYear()===cy)mExp+=parseFloat(r.amount)||0;}catch(e){}});
+  var net=mInc-mExp;var tax=net*0.3;var afterTax=net-tax;var invest=afterTax*0.2;
+  var dash=document.getElementById("page-dashboard");if(!dash)return;
+  var card=dash.children[3];if(!card)return;
+  var h3=card.querySelector("h3,strong");if(h3)h3.textContent="You could be investing "+fmt(invest)+"/mo";
+  var p=card.querySelector("p");if(p)p.textContent="Based on your after-tax monthly income of "+fmt(afterTax)+", investing 20% could grow significantly over time.";
+}
+
+/* 3. Reminders */
+function updateReminders(){
+  var inv=LS("taxmate-invoices"),inc=LS("taxmate-income"),exp=LS("taxmate-expenses");
+  var dash=document.getElementById("page-dashboard");if(!dash)return;
+  var remCard=dash.children[5]?dash.children[5].children[1]:null;if(!remCard)return;
+  var ul=remCard.querySelector("ul");if(!ul){ul=document.createElement("ul");ul.style.cssText="list-style:none;padding:0;margin:0;";remCard.appendChild(ul);}
+  ul.innerHTML="";
+  var today=new Date();var items=[];
+  inv.forEach(function(r){
+    if(r.status==="paid")return;
+    var due=r.inv_due?new Date(r.inv_due+"T00:00:00"):null;if(!due)return;
+    var diff=Math.ceil((due-today)/(1000*60*60*24));
+    if(diff<0)items.push({text:"Invoice #"+(r.invoice_number||r.id)+" is "+Math.abs(diff)+" days overdue",color:"var(--red)"});
+    else if(diff<=7)items.push({text:"Invoice #"+(r.invoice_number||r.id)+" due in "+diff+" days",color:"var(--amber)"});
+  });
+  var yrInc=0;inc.forEach(function(r){try{var d=new Date(r.date+"T00:00:00");if(d.getFullYear()===cy)yrInc+=parseFloat(r.amount)||0;}catch(e){}});
+  var taxRes=yrInc*0.3;
+  if(yrInc>0)items.push({text:"Set aside "+fmt(taxRes)+" for tax (est. 30% of "+fmt(yrInc)+" YTD income)",color:"var(--blue)"});
+  var dedTotal=0;exp.forEach(function(r){if(r.deduction==="yes"||r.deduction===true)dedTotal+=parseFloat(r.amount)||0;});
+  if(dedTotal>0)items.push({text:"You have "+fmt(dedTotal)+" in potential deductions this year",color:"var(--green)"});
+  if(items.length===0)items.push({text:"No reminders right now. Keep it up!",color:"var(--text2)"});
+  items.forEach(function(it){
+    var li=document.createElement("li");li.style.cssText="padding:10px 0;border-bottom:1px solid var(--border);color:"+it.color+";font-size:14px;";
+    li.textContent=it.text;ul.appendChild(li);
+  });
+}
+
+/* 4. Tax Estimator override */
+window.calcTax=function(){
+  var inc=LS("taxmate-income"),exp=LS("taxmate-expenses");
+  var totalInc=0;inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+  var totalExp=0;exp.forEach(function(r){totalExp+=parseFloat(r.amount)||0;});
+  var totalGST=0;
+  inc.forEach(function(r){if(r.gst==="yes"||r.gst===true)totalGST+=((parseFloat(r.amount)||0)/11);});
+  exp.forEach(function(r){if(r.gst==="yes"||r.gst===true)totalGST-=((parseFloat(r.amount)||0)/11);});
+  var deductions=0;exp.forEach(function(r){if(r.deduction==="yes"||r.deduction===true)deductions+=parseFloat(r.amount)||0;});
+  var taxableIncome=totalInc-deductions;
+  if(taxableIncome<0)taxableIncome=0;
+  /* Australian 2024-25 brackets */
+  var tax=0;
+  if(taxableIncome<=18200){tax=0;}
+  else if(taxableIncome<=45000){tax=(taxableIncome-18200)*0.16;}
+  else if(taxableIncome<=135000){tax=4288+(taxableIncome-45000)*0.30;}
+  else if(taxableIncome<=190000){tax=31288+(taxableIncome-135000)*0.37;}
+  else{tax=51638+(taxableIncome-190000)*0.45;}
+  /* LITO */
+  var lito=0;
+  if(taxableIncome<=45000){lito=700;}
+  else if(taxableIncome<66667){lito=700-(taxableIncome-45000)*0.05;}
+  if(lito<0)lito=0;
+  tax=tax-lito;if(tax<0)tax=0;
+  var effectiveRate=totalInc>0?(tax/totalInc*100):0;
+  var afterTax=totalInc-tax;
+  /* Update UI fields */
+  var tp=document.getElementById("page-tax");if(!tp)return;
+  var inputs=tp.querySelectorAll("input");
+  inputs.forEach(function(inp){
+    var lbl=(inp.previousElementSibling?inp.previousElementSibling.textContent:"").toLowerCase();
+    if(lbl.indexOf("total income")!==-1||lbl.indexOf("annual income")!==-1)inp.value=totalInc.toFixed(2);
+    else if(lbl.indexOf("deduction")!==-1)inp.value=deductions.toFixed(2);
+    else if(lbl.indexOf("taxable income")!==-1)inp.value=taxableIncome.toFixed(2);
+  });
+  var results=tp.querySelectorAll(".card");
+  results.forEach(function(card){
+    var h=card.querySelector("h3,h4,strong");
+    if(!h)return;
+    var t=h.textContent.toLowerCase();
+    var val=card.querySelector("p,.value,span");
+    if(!val)return;
+    if(t.indexOf("estimated tax")!==-1)val.textContent=fmt(tax);
+    else if(t.indexOf("effective rate")!==-1)val.textContent=effectiveRate.toFixed(1)+"%";
+    else if(t.indexOf("after tax")!==-1||t.indexOf("after-tax")!==-1)val.textContent=fmt(afterTax);
+    else if(t.indexOf("gst")!==-1)val.textContent=fmt(Math.abs(totalGST))+(totalGST>=0?" owed":" credit");
+  });
+};
+
+/* 5. Reports */
+function fixReports(){
+  var rp=document.getElementById("page-reports");if(!rp)return;
+  var inc=LS("taxmate-income"),exp=LS("taxmate-expenses");
+  var totalInc=0,totalExp=0,totalDed=0;
+  inc.forEach(function(r){totalInc+=parseFloat(r.amount)||0;});
+  exp.forEach(function(r){totalExp+=parseFloat(r.amount)||0;if(r.deduction==="yes"||r.deduction===true)totalDed+=parseFloat(r.amount)||0;});
+  var net=totalInc-totalExp;
+  /* Update summary cards */
+  var cards=rp.querySelectorAll(".card");
+  cards.forEach(function(card){
+    var h=card.querySelector("h3,h4,strong");
+    if(!h)return;
+    var t=h.textContent.toLowerCase();
+    var val=card.querySelector(".kpi-value,p,.value,span:not(h3 span)");
+    if(!val||val===h)return;
+    if(t.indexOf("total income")!==-1||t.indexOf("revenue")!==-1)val.textContent=fmt(totalInc);
+    else if(t.indexOf("total expense")!==-1||t.indexOf("spending")!==-1)val.textContent=fmt(totalExp);
+    else if(t.indexOf("net")!==-1||t.indexOf("profit")!==-1)val.textContent=fmt(net);
+    else if(t.indexOf("deduction")!==-1)val.textContent=fmt(totalDed);
+  });
+  /* Monthly table */
+  var tbody=rp.querySelector("tbody");if(!tbody)return;
+  var months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var monthData={};
+  inc.forEach(function(r){try{var d=new Date(r.date+"T00:00:00");var k=d.getFullYear()+"-"+d.getMonth();
+    if(!monthData[k])monthData[k]={y:d.getFullYear(),m:d.getMonth(),inc:0,exp:0};
+    monthData[k].inc+=parseFloat(r.amount)||0;}catch(e){}});
+  exp.forEach(function(r){try{var d=new Date(r.date+"T00:00:00");var k=d.getFullYear()+"-"+d.getMonth();
+    if(!monthData[k])monthData[k]={y:d.getFullYear(),m:d.getMonth(),inc:0,exp:0};
+    monthData[k].exp+=parseFloat(r.amount)||0;}catch(e){}});
+  var sorted=Object.values(monthData).sort(function(a,b){return a.y===b.y?a.m-b.m:a.y-b.y;});
+  tbody.innerHTML="";
+  if(sorted.length===0){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:20px;color:#94A3B8">No data yet.</td></tr>';return;}
+  sorted.forEach(function(row){
+    var tr=document.createElement("tr");
+    var n=row.inc-row.exp;
+    tr.innerHTML='<td style="padding:10px 12px">'+months[row.m]+" "+row.y+'</td><td style="padding:10px 12px;color:#22C55E">'+fmt(row.inc)+'</td><td style="padding:10px 12px;color:#EF4444">'+fmt(row.exp)+'</td><td style="padding:10px 12px;color:'+(n>=0?"#22C55E":"#EF4444")+'">'+fmt(n)+'</td>';
+    tbody.appendChild(tr);
+  });
+}
+
+/* 6. Invoice createInvoice override */
+window.createInvoice=function(isDraft){
+  var fp=document.getElementById("page-invoices");if(!fp)return;
+  var inputs=fp.querySelectorAll("input,textarea,select");
+  var data={id:Date.now(),date:new Date().toISOString().split("T")[0],status:isDraft?"draft":"sent"};
+  inputs.forEach(function(inp){
+    var ph=(inp.placeholder||"").toLowerCase();
+    var nm=inp.name||"";
+    if(nm==="invoice_number"||ph.indexOf("invoice")!==-1)data.invoice_number=inp.value;
+    else if(nm==="client"||ph.indexOf("client")!==-1||ph.indexOf("business")!==-1)data.client=inp.value;
+    else if(nm==="inv_due"||inp.type==="date"&&!data.inv_due){var v=inp.value;if(v&&v!==data.date)data.inv_due=v;else if(!data.date)data.date=v;}
+    else if(nm==="inv_email"||ph.indexOf("email")!==-1)data.inv_email=inp.value;
+    else if(nm==="inv_abn"||ph.indexOf("abn")!==-1)data.inv_abn=inp.value;
+    else if(ph.indexOf("memo")!==-1||ph.indexOf("note")!==-1)data.memo=inp.value;
+  });
+  /* Line items: find Qty and Rate inputs by placeholder */
+  var qtyInputs=fp.querySelectorAll('input[placeholder*="Qty"],input[placeholder*="qty"],input[name="amount"]');
+  var rateInputs=fp.querySelectorAll('input[placeholder*="Rate"],input[placeholder*="rate"],input[name="gst_option"]');
+  var descInputs=fp.querySelectorAll('input[placeholder*="Description"],input[placeholder*="description"],textarea[name="item_description"]');
+  var subtotal=0;var descs=[];
+  for(var i=0;i<qtyInputs.length;i++){
+    var q=parseFloat(qtyInputs[i].value)||0;
+    var r=rateInputs[i]?parseFloat(rateInputs[i].value)||0:0;
+    subtotal+=q*r;
+    if(descInputs[i]&&descInputs[i].value)descs.push(descInputs[i].value);
+  }
+  data.item_description=descs.join("; ");
+  /* GST */
+  var gstSel=fp.querySelector('select[name="gst_option"],select');
+  var gstOpt=gstSel?gstSel.value:"inclusive";
+  var gstAmt=0;
+  if(gstOpt==="inclusive"){gstAmt=subtotal/11;}
+  else if(gstOpt==="exclusive"){gstAmt=subtotal*0.1;subtotal+=gstAmt;}
+  data.amount=subtotal;data.gst_option=gstOpt;data.gst_amount=gstAmt;
+  var invs=LS("taxmate-invoices");invs.push(data);localStorage.setItem("taxmate-invoices",JSON.stringify(invs));
+  if(window.renderInvoices)renderInvoices();
+  if(window.showToast)showToast("Invoice "+(isDraft?"saved as draft":"created")+"!");
+};
+
+/* 7. Dropdown filters */
+function fixFilters(){
+  var selects=document.querySelectorAll("select");
+  selects.forEach(function(sel){
+    if(sel._v23)return;sel._v23=true;
+    sel.addEventListener("change",function(){
+      var val=sel.value.toLowerCase();
+      var page=sel.closest("[id^=page-]");
+      if(!page)return;
+      var rows=page.querySelectorAll("tbody tr");
+      rows.forEach(function(tr){
+        if(!val||val==="all"){tr.style.display="";return;}
+        var text=tr.textContent.toLowerCase();
+        tr.style.display=text.indexOf(val)!==-1?"":"none";
+      });
+    });
+  });
+}
+
+/* 8. Navigate hooks */
+var oN=window.navigate;
+window.navigate=function(p){oN(p);setTimeout(function(){
+  if(p==="dashboard"){updateDashKPIChanges();updateInvest();updateReminders();}
+  if(p==="tax")calcTax();
+  if(p==="reports")fixReports();
+  fixFilters();
+},200);};
+setTimeout(function(){updateDashKPIChanges();updateInvest();updateReminders();calcTax();fixReports();fixFilters();},600);
+})();
+</script>
 </body>
 </html>
