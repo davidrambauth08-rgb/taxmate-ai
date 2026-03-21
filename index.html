@@ -2572,24 +2572,45 @@ console.log("TaxMate AI v2.0 patch loaded successfully");
 </script>
 
 <script>
-/* v2.1 - Global data sync after save */
+/* v2.1 — Override render functions to always read from localStorage */
 (function(){
-function wrapSave(fnName,dataKey,renderFn){
-  var orig=window[fnName];
-  if(typeof orig!=="function")return;
-  window[fnName]=function(){
-    orig();
-    var d=JSON.parse(localStorage.getItem(dataKey)||"[]");
-    window.incomeData=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
-    window.expenseData=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
-    window.invoiceData=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
-    if(typeof window[renderFn]==="function")window[renderFn](d);
-    setTimeout(function(){if(typeof addDeleteBtns==="function")addDeleteBtns();if(typeof updateKPIs==="function")updateKPIs();},150);
-  };
-}
-wrapSave("saveIncome","taxmate-income","renderIncome");
-wrapSave("saveExpense","taxmate-expenses","renderExpenses");
-wrapSave("createInvoice","taxmate-invoices","renderInvoices");
+window.renderIncome=function(){
+var tbody=document.querySelector('#page-income tbody');if(!tbody)return;
+var data=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
+tbody.innerHTML='';
+if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No income recorded yet</td></tr>';return;}
+data.slice().reverse().forEach(function(r){
+var tr=document.createElement('tr');
+tr.innerHTML='<td>'+(r.date||'')+'</td><td>'+(r.source||'')+'</td><td>'+(r.memo||'')+'</td><td>'+(r.category||'')+'</td><td>$'+(r.amount||0).toLocaleString()+'</td><td>'+(r.gst||'No')+'</td><td>'+(r.payment_status||'')+'</td><td></td>';
+tbody.appendChild(tr);
+});
+if(typeof addDeleteBtns==='function')addDeleteBtns();
+};
+window.renderExpenses=function(){
+var tbody=document.querySelector('#page-expenses tbody');if(!tbody)return;
+var data=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
+tbody.innerHTML='';
+if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No expenses recorded yet</td></tr>';return;}
+data.slice().reverse().forEach(function(r){
+var tr=document.createElement('tr');
+tr.innerHTML='<td>'+(r.date||'')+'</td><td>'+(r.descr||r.description||'')+'</td><td>'+(r.category||'')+'</td><td>$'+(r.amount||0).toLocaleString()+'</td><td>'+(r.gst||'No')+'</td><td>'+(r.deduction||'No')+'</td><td>'+(r.receipt||'')+'</td><td></td>';
+tbody.appendChild(tr);
+});
+if(typeof addDeleteBtns==='function')addDeleteBtns();
+};
+window.renderInvoices=function(){
+var tbody=document.querySelector('#page-invoices tbody');if(!tbody)return;
+var data=JSON.parse(localStorage.getItem('taxmate-invoices')||'[]');
+tbody.innerHTML='';
+if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No invoices yet</td></tr>';return;}
+data.slice().reverse().forEach(function(r){
+var tr=document.createElement('tr');
+var sc=r.status==='Paid'?'color:#22c55e':r.status==='Overdue'?'color:#ef4444':'color:#f59e0b';
+tr.innerHTML='<td>'+(r.invoice_number||'')+'</td><td>'+(r.client||'')+'</td><td>'+(r.date||'')+'</td><td>'+(r.inv_due||'')+'</td><td>$'+(r.amount||0).toLocaleString()+'</td><td>'+(r.gst_option||'No')+'</td><td style="'+sc+';font-weight:600">'+(r.status||'Draft')+'</td><td style="cursor:pointer" onclick="showInvoice('+r.id+')">View</td>';
+tbody.appendChild(tr);
+});
+if(typeof addDeleteBtns==='function')addDeleteBtns();
+};
 })();
 </script>
 </body>
