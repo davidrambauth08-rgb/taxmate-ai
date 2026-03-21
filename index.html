@@ -4243,5 +4243,134 @@ window.calcTax=function(){
   }
 })();
 </script>
+    <script>
+        /* v3.1.1: Deep Spanish i18n + fix check-in on landing */
+        (function(){
+            var LANG=localStorage.getItem('taxmate-lang')||'en';
+            /* === Fix check-in: suppress on landing === */
+            var origCheckin=window.showMonthlyCheckin;
+            if(origCheckin){
+                  window.showMonthlyCheckin=function(){
+                          var a=document.getElementById('appShell');
+                          if(!a||getComputedStyle(a).display==='none')return;
+                          origCheckin();
+                  };
+            }
+            /* === Deep Spanish translations === */
+            var ES2={
+                'TOTAL INCOME':'INGRESO TOTAL','TOTAL EXPENSES':'GASTOS TOTALES',
+                'ESTIMATED TAX':'IMPUESTO ESTIMADO','NET PROFIT':'GANANCIA NETA',
+                'THIS MONTH':'ESTE MES','OUTSTANDING':'PENDIENTE',
+                'ANNUAL (PROJECTED)':'ANUAL (PROYECTADO)','MONTHLY AVERAGE':'PROMEDIO MENSUAL',
+                'MARKET MEDIAN':'MEDIANA DEL MERCADO','VS MARKET':'VS MERCADO',
+                'Income':'Ingresos','Expenses':'Gastos','Invoices':'Facturas',
+                'Tax Estimator':'Estimador de Impuestos','Reports':'Reportes',
+                'Settings':'Configuracion','Dashboard':'Panel',
+                'Track and manage your income streams':'Rastrea y administra tus ingresos',
+                'Track and manage your expenses':'Rastrea y administra tus gastos',
+                'Manage your invoices and billing':'Administra tus facturas y facturacion',
+                'DATE':'FECHA','CLIENT':'CLIENTE','DESCRIPTION':'DESCRIPCION',
+                'CATEGORY':'CATEGORIA','AMOUNT':'MONTO','GST':'GST','STATUS':'ESTADO',
+                'VENDOR':'PROVEEDOR','PAYMENT':'PAGO','TAX DEDUCTIBLE':'DEDUCIBLE',
+                'Add Income':'Agregar Ingreso','Add Expense':'Agregar Gasto',
+                'Save Income':'Guardar Ingreso','Save Expense':'Guardar Gasto',
+                'Cancel':'Cancelar','Delete':'Eliminar','Edit':'Editar',
+                'Export CSV':'Exportar CSV','Search income...':'Buscar ingresos...',
+                'Search expenses...':'Buscar gastos...','All Categories':'Todas las Categorias',
+                'All Clients':'Todos los Clientes','This Financial Year':'Este Ano Fiscal',
+                'All Months':'Todos los Meses',
+                'Productivity Snapshot':'Resumen de Productividad',
+                'Income vs Expenses':'Ingresos vs Gastos','Expense Categories':'Categorias de Gastos',
+                'Full Report':'Reporte Completo','This year':'Este ano','This month':'Este mes',
+                'Your tax obligations depend on your visa status':'Tus obligaciones fiscales dependen de tu tipo de visa',
+                'You could be investing':'Podrias estar invirtiendo',
+                'Grow My Money':'Hacer Crecer Mi Dinero',
+                'Monthly Progress':'Progreso Mensual','months with data':'meses con datos',
+                'Hey':'Hola','Time to log your':'Es hora de registrar tus',
+                'income & expenses':'ingresos y gastos',
+                'Add Income':'Agregar Ingreso','Add Expenses':'Agregar Gastos',
+                'Remind me later':'Recordar mas tarde','Skip this month':'Saltar este mes',
+                'Keeping up month by month makes tax time easy!':'Mantener al dia mes a mes hace que los impuestos sean faciles!',
+                'No income recorded yet':'Aun no hay ingresos registrados',
+                'No expenses recorded yet':'Aun no hay gastos registrados',
+                'INVOICE':'FACTURA','DUE DATE':'FECHA DE VENCIMIENTO','TOTAL':'TOTAL',
+                'PAID':'PAGADO','UNPAID':'NO PAGADO','OVERDUE':'VENCIDO',
+                'paid':'pagado','unpaid':'no pagado','overdue':'vencido',
+                'Client Name':'Nombre del Cliente','Amount (AUD)':'Monto (AUD)',
+                'Date':'Fecha','Category':'Categoria','Description':'Descripcion',
+                'Payment Method':'Metodo de Pago','Payment Status':'Estado de Pago',
+                'Includes GST?':'Incluye GST?',
+                'What was this payment for?':'Para que fue este pago?',
+                'Client or company name':'Nombre del cliente o empresa',
+                'AI Recommendation':'Recomendacion IA',
+                'Bank Transfer':'Transferencia Bancaria','Cash':'Efectivo',
+                'Credit Card':'Tarjeta de Credito','Paid':'Pagado','Pending':'Pendiente',
+                'Services':'Servicios','Products':'Productos','Consulting':'Consultoria',
+                'Other':'Otro','Rent':'Alquiler','Utilities':'Servicios Publicos',
+                'Office':'Oficina','Travel':'Viajes','Marketing':'Marketing',
+                'Software':'Software','Insurance':'Seguro','Equipment':'Equipamiento'
+            };
+            function deepTranslate(){
+                if(LANG!=='es')return;
+                /* Translate all text-bearing elements */
+                var els=document.querySelectorAll('h1,h2,h3,h4,h5,p,span,label,th,button,a,div,small,option');
+                for(var i=0;i<els.length;i++){
+                      var el=els[i];
+                      if(el.children.length>0&&el.tagName!=='BUTTON'&&el.tagName!=='TH'&&el.tagName!=='OPTION')continue;
+                      for(var j=0;j<el.childNodes.length;j++){
+                              var node=el.childNodes[j];
+                              if(node.nodeType===3){
+                                        var txt=node.textContent.trim();
+                                        if(txt.length<2)continue;
+                                        /* Check uppercase stat headers */
+                                        var upper=txt.toUpperCase();
+                                        if(ES2[upper]){node.textContent=node.textContent.replace(txt,ES2[upper]);continue;}
+                                        if(ES2[txt]){node.textContent=node.textContent.replace(txt,ES2[txt]);continue;}
+                                        /* Partial matches for dynamic content */
+                                        for(var key in ES2){
+                                                    if(txt===key){node.textContent=node.textContent.replace(key,ES2[key]);break;}
+                                        }
+                              }
+                      }
+                }
+                /* Translate input placeholders */
+                var inputs=document.querySelectorAll('input[placeholder],textarea[placeholder]');
+                for(var k=0;k<inputs.length;k++){
+                      var ph=inputs[k].placeholder;
+                      if(ES2[ph])inputs[k].placeholder=ES2[ph];
+                }
+                /* Translate select options */
+                var opts=document.querySelectorAll('select option');
+                for(var m=0;m<opts.length;m++){
+                      var ot=opts[m].textContent.trim();
+                      if(ES2[ot])opts[m].textContent=ES2[ot];
+                }
+            }
+            /* Run after navigation */
+            var _pNav311=window.navigate;
+            window.navigate=function(p){
+                if(p==='ai')p='insights';
+                if(_pNav311)_pNav311(p);
+                setTimeout(deepTranslate,300);
+            };
+            /* Run on initial load and after modals open */
+            setTimeout(deepTranslate,1200);
+            setInterval(function(){
+                  var modals=document.querySelectorAll('[style*="position: fixed"]');
+                  if(modals.length>0)setTimeout(deepTranslate,200);
+            },2000);
+            /* Translate check-in modal when it appears */
+            var origCheckin2=window.showMonthlyCheckin;
+            if(origCheckin2){
+                  window.showMonthlyCheckin=function(){
+                          var a=document.getElementById('appShell');
+                          if(!a||getComputedStyle(a).display==='none')return;
+                          origCheckin2();
+                          setTimeout(deepTranslate,300);
+                  };
+            }
+        })();
+    </script>
+    </script>
 </body>
 </html>
