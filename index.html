@@ -4495,5 +4495,138 @@ window.calcTax=function(){
         })();
     </script>
     </script>
+    <script>
+        /* v3.3: Login/Signup system */
+        (function(){
+            var LANG=localStorage.getItem('taxmate-lang')||'en';
+            var ES={'Log In':'Iniciar Sesion','Sign Up':'Registrarse','Email':'Correo electronico','Password':'Contrasena','Full Name':'Nombre completo','Business Type':'Tipo de negocio','Remember me':'Recordarme','Forgot password?':'Olvidaste tu contrasena?','Don\'t have an account?':'No tienes cuenta?','Already have an account?':'Ya tienes cuenta?','Create Account':'Crear Cuenta','Welcome back!':'Bienvenido de vuelta!','Create your account':'Crea tu cuenta','Enter your email':'Ingresa tu correo','Enter your password':'Ingresa tu contrasena','Enter your full name':'Ingresa tu nombre completo','Logging in...':'Iniciando sesion...','Creating account...':'Creando cuenta...','Invalid email or password':'Correo o contrasena incorrectos','Please fill all fields':'Por favor completa todos los campos','Account created!':'Cuenta creada!','Freelancer':'Freelancer','Tradie':'Tradie','Small Business':'Pequeno Negocio','Consultant':'Consultor'};
+            function t(k){return LANG==='es'&&ES[k]?ES[k]:k;}
+            function showLoginModal(isSignup){
+                var existing=document.getElementById('authModal');
+                if(existing)existing.remove();
+                var overlay=document.createElement('div');
+                overlay.id='authModal';
+                overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+                var mode=isSignup?'signup':'login';
+                var card=document.createElement('div');
+                card.style.cssText='background:white;border-radius:16px;padding:40px;width:420px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.2);position:relative;';
+                var html='<div style="text-align:center;margin-bottom:24px;">';
+                html+='<div style="font-size:28px;margin-bottom:8px;">&#128176;</div>';
+                html+='<h2 style="margin:0;font-family:Playfair Display,serif;font-size:24px;color:#0F2557;">TaxMate AI</h2>';
+                html+='<p style="margin:8px 0 0;color:#4A6FA5;font-size:14px;">'+(mode==='login'?t('Welcome back!'):t('Create your account'))+'</p>';
+                html+='</div>';
+                html+='<div style="display:flex;margin-bottom:24px;border-radius:8px;overflow:hidden;border:1px solid #E4EAF5;">';
+                html+='<button id="tabLogin" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:14px;font-weight:600;background:'+(mode==='login'?'#0F2557':'white')+';color:'+(mode==='login'?'white':'#4A6FA5')+';" onclick="window._switchAuth(\'login\')">'+t('Log In')+'</button>';
+                html+='<button id="tabSignup" style="flex:1;padding:10px;border:none;cursor:pointer;font-size:14px;font-weight:600;background:'+(mode==='signup'?'#0F2557':'white')+';color:'+(mode==='signup'?'white':'#4A6FA5')+';" onclick="window._switchAuth(\'signup\')">'+t('Sign Up')+'</button>';
+                html+='</div>';
+                if(mode==='signup'){
+                    html+='<div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;color:#0F2557;margin-bottom:6px;">'+t('Full Name')+'</label>';
+                    html+='<input id="authName" type="text" placeholder="'+t('Enter your full name')+'" style="width:100%;padding:12px;border:1px solid #E4EAF5;border-radius:8px;font-size:14px;box-sizing:border-box;"></div>';
+                }
+                html+='<div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;color:#0F2557;margin-bottom:6px;">'+t('Email')+'</label>';
+                html+='<input id="authEmail" type="email" placeholder="'+t('Enter your email')+'" style="width:100%;padding:12px;border:1px solid #E4EAF5;border-radius:8px;font-size:14px;box-sizing:border-box;"></div>';
+                html+='<div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;color:#0F2557;margin-bottom:6px;">'+t('Password')+'</label>';
+                html+='<input id="authPass" type="password" placeholder="'+t('Enter your password')+'" style="width:100%;padding:12px;border:1px solid #E4EAF5;border-radius:8px;font-size:14px;box-sizing:border-box;"></div>';
+                if(mode==='signup'){
+                    html+='<div style="margin-bottom:16px;"><label style="display:block;font-size:13px;font-weight:600;color:#0F2557;margin-bottom:6px;">'+t('Business Type')+'</label>';
+                    html+='<select id="authBiz" style="width:100%;padding:12px;border:1px solid #E4EAF5;border-radius:8px;font-size:14px;box-sizing:border-box;">';
+                    html+='<option>'+t('Freelancer')+'</option><option>'+t('Tradie')+'</option><option>'+t('Small Business')+'</option><option>'+t('Consultant')+'</option></select></div>';
+                }
+                html+='<div id="authError" style="color:#DC2626;font-size:13px;margin-bottom:12px;display:none;"></div>';
+                html+='<button id="authSubmit" onclick="window._authSubmit()" style="width:100%;padding:14px;background:#0F2557;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;margin-bottom:16px;">'+(mode==='login'?t('Log In'):t('Create Account'))+'</button>';
+                if(mode==='login'){
+                    html+='<div style="text-align:center;"><span style="color:#4A6FA5;font-size:13px;">'+t('Don\'t have an account?')+' </span><a href="#" onclick="window._switchAuth(\'signup\');return false;" style="color:#0F2557;font-weight:600;font-size:13px;text-decoration:none;">'+t('Sign Up')+'</a></div>';
+                }else{
+                    html+='<div style="text-align:center;"><span style="color:#4A6FA5;font-size:13px;">'+t('Already have an account?')+' </span><a href="#" onclick="window._switchAuth(\'login\');return false;" style="color:#0F2557;font-weight:600;font-size:13px;text-decoration:none;">'+t('Log In')+'</a></div>';
+                }
+                html+='<button onclick="document.getElementById(\'authModal\').remove();" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#999;">&times;</button>';
+                card.innerHTML=html;
+                overlay.appendChild(card);
+                overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
+                document.body.appendChild(overlay);
+                setTimeout(function(){var em=document.getElementById('authEmail');if(em)em.focus();var nm=document.getElementById('authName');if(nm)nm.focus();},100);
+            }
+            window._switchAuth=function(mode){
+                showLoginModal(mode==='signup');
+            };
+            window._authSubmit=function(){
+                var emailEl=document.getElementById('authEmail');
+                var passEl=document.getElementById('authPass');
+                var nameEl=document.getElementById('authName');
+                var bizEl=document.getElementById('authBiz');
+                var errEl=document.getElementById('authError');
+                var btn=document.getElementById('authSubmit');
+                var email=emailEl?emailEl.value.trim():'';
+                var pass=passEl?passEl.value:'';
+                var isSignup=!!nameEl;
+                if(!email||!pass||(isSignup&&!nameEl.value.trim())){
+                    errEl.textContent=t('Please fill all fields');errEl.style.display='block';return;
+                }
+                if(email.indexOf('@')===-1){
+                    errEl.textContent=t('Invalid email or password');errEl.style.display='block';return;
+                }
+                btn.textContent=isSignup?t('Creating account...'):t('Logging in...');
+                btn.disabled=true;
+                setTimeout(function(){
+                    var accounts=JSON.parse(localStorage.getItem('taxmate-accounts')||'{}');
+                    if(isSignup){
+                        if(accounts[email]){errEl.textContent=LANG==='es'?'Este correo ya esta registrado':'This email is already registered';errEl.style.display='block';btn.textContent=t('Create Account');btn.disabled=false;return;}
+                        accounts[email]={pass:btoa(pass),name:nameEl.value.trim(),biz:bizEl?bizEl.value:'Freelancer',created:new Date().toISOString()};
+                        localStorage.setItem('taxmate-accounts',JSON.stringify(accounts));
+                        var userData={name:nameEl.value.trim(),email:email,business_type:bizEl?bizEl.value:'Freelancer',visa:'Citizen',abn:'',business_name:'',created:new Date().toISOString()};
+                        localStorage.setItem('taxmate-user',JSON.stringify(userData));
+                        document.getElementById('authModal').remove();
+                        showApp();
+                    }else{
+                        if(!accounts[email]){
+                            var existingUser=JSON.parse(localStorage.getItem('taxmate-user')||'null');
+                            if(existingUser&&existingUser.email===email){
+                                accounts[email]={pass:btoa(pass),name:existingUser.name,biz:existingUser.business_type,created:existingUser.created};
+                                localStorage.setItem('taxmate-accounts',JSON.stringify(accounts));
+                                document.getElementById('authModal').remove();
+                                showApp();return;
+                            }
+                            errEl.textContent=t('Invalid email or password');errEl.style.display='block';btn.textContent=t('Log In');btn.disabled=false;return;
+                        }
+                        if(accounts[email].pass!==btoa(pass)){
+                            errEl.textContent=t('Invalid email or password');errEl.style.display='block';btn.textContent=t('Log In');btn.disabled=false;return;
+                        }
+                        var userData={name:accounts[email].name,email:email,business_type:accounts[email].biz,visa:'Citizen',abn:'',business_name:'',created:accounts[email].created};
+                        localStorage.setItem('taxmate-user',JSON.stringify(userData));
+                        document.getElementById('authModal').remove();
+                        showApp();
+                    }
+                },800);
+            };
+            /* Override landing page buttons */
+            var origShowApp=window.showApp;
+            var allBtns=document.querySelectorAll('button');
+            allBtns.forEach(function(b){
+                var oc=b.getAttribute('onclick');
+                if(oc&&oc.indexOf('showApp')!==-1){
+                    var txt=b.textContent.trim();
+                    if(txt.indexOf('Log')!==-1){
+                        b.setAttribute('onclick','window.showLoginModal(false)');
+                    }else if(txt.indexOf('Start')!==-1||txt.indexOf('Free')!==-1){
+                        b.setAttribute('onclick','window.showLoginModal(true)');
+                    }
+                }
+            });
+            window.showLoginModal=function(isSignup){showLoginModal(isSignup);};
+            /* Auto-login if user already exists */
+            var existingUser=localStorage.getItem('taxmate-user');
+            if(existingUser){
+                var btnsAll=document.querySelectorAll('button');
+                btnsAll.forEach(function(b){
+                    var txt=b.textContent.trim();
+                    if(txt.indexOf('Log')!==-1){
+                        b.setAttribute('onclick','showApp()');
+                        b.textContent=LANG==='es'?'Entrar':'Enter App';
+                    }
+                });
+            }
+        })();
+    </script>
+    </script>
 </body>
 </html>
