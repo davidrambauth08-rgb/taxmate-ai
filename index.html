@@ -4847,5 +4847,61 @@ window.calcTax=function(){
         })();
     </script>
     </script>
+
+    <script>
+        /* v3.4.1: Fix visa selector - cards have no class/dataset, override selectVisa */
+        (function(){
+            var _selectedVisa=null;
+            window.selectVisa=function(type,el){
+                _selectedVisa=type;
+                /* Find all visa card siblings */
+                var parent=el?el.parentElement:null;
+                if(!parent)return;
+                var cards=parent.children;
+                for(var i=0;i<cards.length;i++){
+                    var c=cards[i];
+                    if(c.style&&c.style.cursor==='pointer'){
+                        c.style.border='2px solid var(--border)';
+                        c.style.background='var(--surface)';
+                        c.style.transform='scale(1)';
+                    }
+                }
+                /* Highlight selected */
+                if(el){
+                    el.style.border='2px solid var(--blue)';
+                    el.style.background='var(--blue-light)';
+                    el.style.transform='scale(1.02)';
+                }
+            };
+            /* Also fix Save My Status button */
+            var _origSaveVisa=window.saveVisaStatus;
+            window.saveVisaStatus=function(){
+                if(!_selectedVisa){
+                    var LANG=localStorage.getItem('taxmate-lang')||'en';
+                    alert(LANG==='es'?'Por favor selecciona un tipo de visa':'Please select a visa type');
+                    return;
+                }
+                localStorage.setItem('taxmate-visa',_selectedVisa);
+                /* Update user data */
+                var user=JSON.parse(localStorage.getItem('taxmate-user')||'{}');
+                var visaLabels={citizen:'Citizen',skilled_work:'Skilled Work',working_holiday:'Working Holiday',student:'Student',business:'Business/Investor',other:'Other'};
+                user.visa=visaLabels[_selectedVisa]||_selectedVisa;
+                localStorage.setItem('taxmate-user',JSON.stringify(user));
+                /* Close modal and update badge */
+                var modal=document.querySelector('.modal-overlay');
+                if(modal)modal.remove();
+                var badge=document.querySelector('[class*="visa-badge"]');
+                if(!badge){
+                    var allBtns=document.querySelectorAll('button,div');
+                    for(var i=0;i<allBtns.length;i++){
+                        if(allBtns[i].textContent.indexOf('Visa:')>-1){badge=allBtns[i];break;}
+                    }
+                }
+                if(badge)badge.textContent='Visa: '+user.visa;
+                if(typeof _origSaveVisa==='function')_origSaveVisa();
+            };
+        })();
+    </script>
+    </script>
 </body>
 </html>
