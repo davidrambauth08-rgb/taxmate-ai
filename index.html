@@ -5214,4 +5214,347 @@ window.updateKPIs=function(){
 },2700);
 })();
 </script>
-</html>
+<script>
+/* v3.7: ABN/TFN tax registration type + updated tax calc */
+(function(){
+setTimeout(function(){
+
+/* Add ABN/TFN selector to Settings page */
+var sp=document.getElementById("page-settings");
+if(sp){
+  var visaLabel=null;
+  sp.querySelectorAll("label").forEach(function(l){
+    if(l.textContent.indexOf("Tipo de Usuario")!==-1||l.textContent.indexOf("User Type")!==-1) visaLabel=l;
+  });
+  if(visaLabel){
+    var container=visaLabel.parentElement;
+    var taxDiv=document.createElement("div");
+    taxDiv.style.cssText="margin-top:16px;";
+    var lang=localStorage.getItem("taxmate-lang")==="es";
+    taxDiv.innerHTML='<label class="form-label">'+(lang?"Tipo de Registro Fiscal":"Tax Registration Type")+'</label>'+
+      '<select class="form-input form-select" id="taxRegType">'+
+      '<option value="abn">ABN — '+(lang?"Trabajador independiente / Sole Trader":"Sole Trader / Freelancer")+'</option>'+
+      '<option value="tfn">TFN — '+(lang?"Empleado (tax retenido por empleador)":"Employee (tax withheld by employer)")+'</option>'+
+      '</select>'+
+      '<p style="font-size:12px;color:#888;margin-top:4px;" id="taxRegHint"></p>';
+    container.parentElement.insertBefore(taxDiv, container.nextElementSibling);
+    var sel=document.getElementById("taxRegType");
+    var hint=document.getElementById("taxRegHint");
+    var saved=localStorage.getItem("taxmate-taxreg")||"abn";
+    sel.value=saved;
+    function updateHint(){
+      var v=sel.value;
+      if(v==="abn") hint.textContent=lang?"ABN: Calcul\u00e1s y pag\u00e1s tu propio tax. Threshold libre de impuestos: $18,200 (residentes).":"ABN: You calculate and pay your own tax. Tax-free threshold: $18,200 (residents).";
+      else hint.textContent=lang?"TFN: Tu empleador ya retiene el tax (PAYG). Los montos mostrados son estimativos.":"TFN: Your employer withholds tax (PAYG). Amounts shown are estimates.";
+    }
+    updateHint();
+    sel.addEventListener("change",function(){
+      localStorage.setItem("taxmate-taxreg",sel.value);
+      updateHint();
+      if(typeof updateKPIs==="function")updateKPIs();
+      if(typeof calcTax==="function")calcTax();
+    });
+  }
+}
+
+/* Override _taxByVisa to account for ABN/TFN */
+var _origTaxByVisa=window._taxByVisa;
+window._taxByVisa=function(taxableIncome, visa){
+  var taxReg=localStorage.getItem("taxmate-taxreg")||"abn";
+  var v=(visa||"").toLowerCase();
+  var tax=0;
+
+  /* TFN employee: tax already withheld — estimate what employer would withhold */
+  if(taxReg==="tfn"){
+    /* Employees still use resident brackets if resident visa, but we note it's already withheld */
+    if(v==="whm"){
+      if(taxableIncome<=45000) tax=taxableIncome*0.15;
+      else if(taxableIncome<=135000) tax=6750+(taxableIncome-45000)*0.30;
+      else if(taxableIncome<=190000) tax=33750+(taxableIncome-135000)*0.37;
+      else tax=54100+(taxableIncome-190000)*0.45;
+    } else if(v==="other"){
+      if(taxableIncome<=135000) tax=taxableIncome*0.30;
+      else if(taxableIncome<=190000) tax=40500+(taxableIncome-135000)*0.37;
+      else tax=60850+(taxableIncome-190000)*0.45;
+    } else {
+      /* Resident employee — same brackets */
+      if(taxableIncome<=18200) tax=0;
+      else if(taxableIncome<=45000) tax=(taxableIncome-18200)*0.16;
+      else if(taxableIncome<=135000) tax=4288+(taxableIncome-45000)*0.30;
+      else if(taxableIncome<=190000) tax=31288+(taxableIncome-135000)*0.37;
+      else tax=51638+(taxableIncome-190000)*0.45;
+      var lito=0;
+      if(taxableIncome<=45000) lito=700;
+      else if(taxableIncome<66667) lito=700-(taxableIncome-45000)*0.05;
+      if(lito<0) lito=0;
+      tax=tax-lito; if(tax<0) tax=0;
+    }
+    return tax;
+  }
+
+  /* ABN: use original visa-aware calc (resident threshold $18,200 applies) */
+  if(typeof _origTaxByVisa==="function") return _origTaxByVisa(taxableIncome, visa);
+  return 0;
+};
+
+/* Update dashboard tax card label to show ABN/TFN context */
+var _pKPI37=window.updateKPIs;
+window.updateKPIs=function(){
+  if(typeof _pKPI37==="function") _pKPI37();
+  var taxReg=localStorage.getItem("taxmate-taxreg")||"abn";
+  var lang=localStorage.getItem("taxmate-lang")==="es";
+  var dash=document.getElementById("page-dashboard");
+  if(!dash) return;
+  dash.querySelectorAll(".kpi-card,.card").forEach(function(card){
+    var lbl=card.querySelector(".kpi-label,small");
+    if(!lbl) return;
+    var lt=lbl.textContent.toLowerCase();
+    if(lt.indexOf("impuesto")!==-1||lt.indexOf("tax")!==-1){
+      if(taxReg==="tfn"){
+        var valEl=card.querySelector(".kpi-value,h2,h3");
+        if(valEl){
+          var sub=card.querySelector(".tax-reg-hint");
+          if(!sub){
+            sub=document.createElement("div");
+            sub.className="tax-reg-hint";
+            sub.style.cssText="font-size:10px;color:#f59e0b;margin-top:2px;";
+            valEl.parentElement.appendChild(sub);
+          }
+          sub.textContent=lang?"(Retenido por empleador)":"(Withheld by employer)";
+        }
+      } else {
+        var sub2=card.querySelector(".tax-reg-hint");
+        if(sub2) sub2.textContent=lang?"ABN — Debes pagar":"ABN — You owe";
+      }
+    }
+  });
+};
+if(typeof updateKPIs==="function") updateKPIs();
+
+},2800);
+})();
+</script>\n<script>
+/* v3.8: AI Dashboard — Smart tips + Interactive chat */
+(function(){
+setTimeout(function(){
+
+var lang=(localStorage.getItem("taxmate-lang")||"en")==="es";
+
+/* =========== SMART TIPS ENGINE =========== */
+function generateTips(){
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var visa=localStorage.getItem("taxmate-visa")||"citizen";
+  var taxReg=localStorage.getItem("taxmate-taxreg")||"abn";
+  var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var profit=totalInc-totalExp;
+  var deductions=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var taxableIncome=totalInc-deductions;if(taxableIncome<0)taxableIncome=0;
+  var estTax=typeof _taxByVisa==="function"?_taxByVisa(taxableIncome,visa):0;
+  var tips=[];
+  var v=visa.toLowerCase();
+  var isResident=v!=="other"&&v!=="whm";
+  var threshold=isResident?18200:0;
+
+  /* Tip: Tax-free threshold proximity */
+  if(isResident&&taxableIncome>0&&taxableIncome<18200){
+    var gap=18200-taxableIncome;
+    tips.push({icon:"\ud83d\udee1\ufe0f",title:lang?"Dentro del umbral libre":"Within tax-free threshold",text:lang?"Te faltan $"+Math.round(gap).toLocaleString()+" para empezar a pagar tax. \u00a1Aprovech\u00e1!":"You have $"+Math.round(gap).toLocaleString()+" left before you start paying tax.",type:"success"});
+  }
+
+  /* Tip: Next bracket warning */
+  if(isResident&&taxableIncome>18200&&taxableIncome<45000){
+    var toNext=45000-taxableIncome;
+    tips.push({icon:"\u26a0\ufe0f",title:lang?"Pr\u00f3ximo bracket fiscal":"Next tax bracket",text:lang?"$"+Math.round(toNext).toLocaleString()+" m\u00e1s y pasas al bracket del 30%. Actual: 16%.":"$"+Math.round(toNext).toLocaleString()+" more and you enter the 30% bracket. Current: 16%.",type:"warning"});
+  }
+
+  /* Tip: BAS reminder for ABN */
+  if(taxReg==="abn"){
+    var now=new Date();var m=now.getMonth();
+    if(m===9||m===0||m===3||m===6){
+      tips.push({icon:"\ud83d\udcc5",title:lang?"Recordatorio BAS":"BAS Reminder",text:lang?"Este mes vence tu BAS trimestral. Asegurate de declarar tu GST.":"Your quarterly BAS is due this month. Make sure to lodge your GST.",type:"warning"});
+    }
+    var quarterTax=estTax/4;
+    if(quarterTax>0){
+      tips.push({icon:"\ud83d\udcb0",title:lang?"Reserva para impuestos":"Tax Reserve",text:lang?"Deberias apartar ~$"+Math.round(quarterTax).toLocaleString()+" por trimestre para impuestos.":"You should set aside ~$"+Math.round(quarterTax).toLocaleString()+" per quarter for tax.",type:"info"});
+    }
+  }
+
+  /* Tip: TFN withholding info */
+  if(taxReg==="tfn"){
+    tips.push({icon:"\u2139\ufe0f",title:lang?"Tax retenido (PAYG)":"Tax Withheld (PAYG)",text:lang?"Tu empleador retiene ~$"+Math.round(estTax).toLocaleString()+" anual. Verific\u00e1 tu payslip.":"Your employer withholds ~$"+Math.round(estTax).toLocaleString()+" annually. Check your payslip.",type:"info"});
+  }
+
+  /* Tip: GST threshold */
+  if(taxReg==="abn"&&totalInc>60000&&totalInc<75000){
+    tips.push({icon:"\ud83d\udcca",title:lang?"Umbral GST cerca":"GST Threshold Near",text:lang?"Tu ingreso est\u00e1 cerca de $75K. Si lo superas, DEBES registrarte en GST.":"Your income is near $75K. If you exceed it, you MUST register for GST.",type:"warning"});
+  }
+
+  /* Tip: Deductions advice */
+  if(deductions===0&&totalExp>0){
+    tips.push({icon:"\ud83d\udca1",title:lang?"Deducciones no marcadas":"No Deductions Flagged",text:lang?"Ten\u00e9s gastos pero ninguno marcado como deducible. Revis\u00e1 tus gastos para ahorrar tax.":"You have expenses but none marked as deductible. Review to save on tax.",type:"info"});
+  }
+
+  /* Tip: Student visa specific */
+  if(v==="student"){
+    tips.push({icon:"\ud83c\udf93",title:lang?"Visa de estudiante":"Student Visa",text:lang?"Como estudiante residente, ten\u00e9s el threshold de $18,200. Pod\u00e9s trabajar hasta 48hs/quincena durante clases.":"As a resident student, you get the $18,200 threshold. You can work up to 48hrs/fortnight during study.",type:"info"});
+  }
+
+  /* Tip: Positive savings */
+  if(profit>0&&totalInc>0){
+    var savingsRate=((profit/totalInc)*100).toFixed(0);
+    tips.push({icon:"\ud83c\udf1f",title:lang?"Tasa de ahorro: "+savingsRate+"%":"Savings Rate: "+savingsRate+"%",text:lang?"Est\u00e1s ahorrando "+savingsRate+"% de tus ingresos. "+(parseInt(savingsRate)>30?"\u00a1Excelente!":"Intentar llegar al 30%."):"You are saving "+savingsRate+"% of income. "+(parseInt(savingsRate)>30?"Excellent!":"Aim for 30%."),type:parseInt(savingsRate)>30?"success":"info"});
+  }
+
+  return tips;
+}
+
+/* =========== AI CHAT ENGINE =========== */
+function aiResponse(question){
+  var q=question.toLowerCase();
+  var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+  var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+  var visa=localStorage.getItem("taxmate-visa")||"citizen";
+  var taxReg=localStorage.getItem("taxmate-taxreg")||"abn";
+  var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var profit=totalInc-totalExp;
+  var deductions=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+  var taxableIncome=totalInc-deductions;if(taxableIncome<0)taxableIncome=0;
+  var estTax=typeof _taxByVisa==="function"?_taxByVisa(taxableIncome,visa):0;
+  var fmt=function(n){return"$"+Math.round(n).toLocaleString("en-AU");};
+
+  if(q.indexOf("tax")!==-1||q.indexOf("impuesto")!==-1){
+    return lang?"Tu ingreso imponible es "+fmt(taxableIncome)+". Tax estimado: "+fmt(estTax)+". Tipo: "+(taxReg==="abn"?"ABN (pagas vos)":"TFN (retenido)")+". Visa: "+visa+".":"Your taxable income is "+fmt(taxableIncome)+". Estimated tax: "+fmt(estTax)+". Type: "+(taxReg==="abn"?"ABN (you pay)":"TFN (withheld)")+". Visa: "+visa+".";
+  }
+  if(q.indexOf("gst")!==-1||q.indexOf("bas")!==-1){
+    var gst=inc.filter(function(e){return(e.gst||"").toString().toLowerCase().indexOf("yes")!==-1;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0)/11;},0);
+    return lang?"GST cobrado: "+fmt(gst)+". "+(totalInc>=75000?"DEBES estar registrado en GST.":"No necesitas registrarte en GST hasta $75K."):"GST collected: "+fmt(gst)+". "+(totalInc>=75000?"You MUST be registered for GST.":"No GST registration required until $75K.");
+  }
+  if(q.indexOf("dedu")!==-1||q.indexOf("gasto")!==-1||q.indexOf("expense")!==-1){
+    return lang?"Gastos totales: "+fmt(totalExp)+". Deducciones marcadas: "+fmt(deductions)+". Esto reduce tu ingreso imponible de "+fmt(totalInc)+" a "+fmt(taxableIncome)+".":"Total expenses: "+fmt(totalExp)+". Flagged deductions: "+fmt(deductions)+". This reduces your taxable income from "+fmt(totalInc)+" to "+fmt(taxableIncome)+".";
+  }
+  if(q.indexOf("income")!==-1||q.indexOf("ingreso")!==-1||q.indexOf("ganancia")!==-1){
+    return lang?"Ingreso total: "+fmt(totalInc)+". Gastos: "+fmt(totalExp)+". Ganancia neta: "+fmt(profit)+". Tienes "+inc.length+" registros de ingreso.":"Total income: "+fmt(totalInc)+". Expenses: "+fmt(totalExp)+". Net profit: "+fmt(profit)+". You have "+inc.length+" income records.";
+  }
+  if(q.indexOf("visa")!==-1){
+    var vt=visa.toLowerCase();
+    if(vt==="student") return lang?"Visa de estudiante: si resides >6 meses en AU, ten\u00e9s threshold de $18,200 + LITO. Pod\u00e9s trabajar 48hs/quincena.":"Student visa: if you reside >6 months in AU, you get $18,200 threshold + LITO. Can work 48hrs/fortnight.";
+    if(vt==="whm") return lang?"WHM: 15% hasta $45K, luego 30%+. Sin tax-free threshold.":"WHM: 15% up to $45K, then 30%+. No tax-free threshold.";
+    return lang?"Tu visa ("+visa+"): brackets de residente con threshold $18,200 + LITO.":"Your visa ("+visa+"): resident brackets with $18,200 threshold + LITO.";
+  }
+  if(q.indexOf("abn")!==-1||q.indexOf("tfn")!==-1){
+    return lang?"ABN = trabajador independiente, pagas tu propio tax y BAS trimestral. TFN = empleado, tu empleador retiene PAYG. Actualmente est\u00e1s en: "+taxReg.toUpperCase()+".":"ABN = sole trader, you pay your own tax and quarterly BAS. TFN = employee, your employer withholds PAYG. You are currently: "+taxReg.toUpperCase()+".";
+  }
+  if(q.indexOf("ahorro")!==-1||q.indexOf("saving")!==-1||q.indexOf("save")!==-1){
+    var sRate=totalInc>0?((profit/totalInc)*100).toFixed(1):"0";
+    return lang?"Tu tasa de ahorro es "+sRate+"%. Ganancia: "+fmt(profit)+". Se recomienda ahorrar al menos 20-30% de tus ingresos.":"Your savings rate is "+sRate+"%. Profit: "+fmt(profit)+". It is recommended to save at least 20-30% of income.";
+  }
+  if(q.indexOf("hola")!==-1||q.indexOf("hello")!==-1||q.indexOf("hi")!==-1){
+    return lang?"\u00a1Hola! Soy TaxMate AI. Pod\u00e9s preguntarme sobre: tax, GST, BAS, deducciones, visa, ABN/TFN, ahorros, o tu ingreso.":"Hello! I am TaxMate AI. You can ask me about: tax, GST, BAS, deductions, visa, ABN/TFN, savings, or your income.";
+  }
+  return lang?"Pod\u00e9s preguntarme sobre: impuestos, GST, BAS, deducciones, ingresos, visa, ABN/TFN, o ahorros. Ej: '\u00bfCu\u00e1nto tax debo?'":"You can ask me about: tax, GST, BAS, deductions, income, visa, ABN/TFN, or savings. E.g.: 'How much tax do I owe?'";
+}
+
+/* =========== RENDER AI SECTION ON DASHBOARD =========== */
+function renderAISection(){
+  var dash=document.getElementById("page-dashboard");
+  if(!dash) return;
+  if(document.getElementById("ai-dashboard-section")) return;
+
+  var section=document.createElement("div");
+  section.id="ai-dashboard-section";
+  section.style.cssText="margin:20px 0;";
+
+  var tips=generateTips();
+  var tipsHTML=tips.map(function(t){
+    var bg=t.type==="success"?"#064e3b":t.type==="warning"?"#78350f":"#1e3a5f";
+    var border=t.type==="success"?"#10b981":t.type==="warning"?"#f59e0b":"#3b82f6";
+    return '<div style="background:'+bg+';border-left:4px solid '+border+';border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;">'+
+      '<span style="font-size:20px;">'+t.icon+'</span>'+
+      '<div><strong style="color:#fff;font-size:13px;">'+t.title+'</strong>'+
+      '<p style="color:#d1d5db;font-size:12px;margin:4px 0 0;">'+t.text+'</p></div></div>';
+  }).join("");
+
+  section.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'+
+    '<span style="font-size:22px;">\ud83e\udde0</span>'+
+    '<h3 style="margin:0;color:#fff;font-size:16px;">TaxMate AI</h3>'+
+    '<span style="background:#3b82f6;color:#fff;font-size:10px;padding:2px 8px;border-radius:12px;">BETA</span></div>'+
+    '<div id="ai-tips-container" style="margin-bottom:16px;">'+tipsHTML+'</div>'+
+    '<div style="background:#0f172a;border:1px solid #334155;border-radius:12px;padding:16px;">'+
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">'+
+    '<span style="font-size:16px;">\ud83d\udcac</span>'+
+    '<strong style="color:#fff;font-size:13px;">'+(lang?"Preguntale a TaxMate AI":"Ask TaxMate AI")+'</strong></div>'+
+    '<div id="ai-chat-messages" style="max-height:200px;overflow-y:auto;margin-bottom:12px;"></div>'+
+    '<div style="display:flex;gap:8px;">'+
+    '<input type="text" id="ai-chat-input" placeholder="'+(lang?"Ej: \u00bfCu\u00e1nto tax debo?":"E.g.: How much tax do I owe?")+'" style="flex:1;background:#1e293b;border:1px solid #475569;border-radius:8px;padding:10px 14px;color:#fff;font-size:13px;outline:none;">'+
+    '<button id="ai-chat-send" style="background:#3b82f6;border:none;border-radius:8px;padding:10px 16px;color:#fff;cursor:pointer;font-size:13px;white-space:nowrap;">'+(lang?"Enviar":"Send")+'</button></div>'+
+    '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;" id="ai-quick-btns"></div>'+
+    '</div>';
+
+  /* Insert after visa banner or after kpi-grid */
+  var visaBanner=document.getElementById("visa-banner");
+  var kpiGrid=dash.querySelector(".kpi-grid");
+  var ref=visaBanner||kpiGrid;
+  if(ref&&ref.nextSibling) dash.insertBefore(section,ref.nextSibling);
+  else dash.appendChild(section);
+
+  /* Quick suggestion buttons */
+  var quickBtns=document.getElementById("ai-quick-btns");
+  var suggestions=lang?["\u00bfCu\u00e1nto tax debo?","\u00bfMi visa?","\u00bfGST/BAS?","\u00bfABN o TFN?","\u00bfMis ahorros?"]:["How much tax?","My visa?","GST/BAS?","ABN or TFN?","My savings?"];
+  suggestions.forEach(function(s){
+    var btn=document.createElement("button");
+    btn.textContent=s;
+    btn.style.cssText="background:#1e293b;border:1px solid #475569;border-radius:16px;padding:4px 12px;color:#94a3b8;font-size:11px;cursor:pointer;";
+    btn.addEventListener("click",function(){
+      document.getElementById("ai-chat-input").value=s;
+      sendChat();
+    });
+    quickBtns.appendChild(btn);
+  });
+
+  /* Chat functionality */
+  function addMsg(text, isUser){
+    var msgs=document.getElementById("ai-chat-messages");
+    var div=document.createElement("div");
+    div.style.cssText="padding:8px 12px;border-radius:8px;margin-bottom:6px;font-size:12px;line-height:1.5;max-width:90%;"+(isUser?"background:#1e3a5f;color:#93c5fd;margin-left:auto;text-align:right;":"background:#1e293b;color:#d1d5db;");
+    div.textContent=text;
+    msgs.appendChild(div);
+    msgs.scrollTop=msgs.scrollHeight;
+  }
+
+  function sendChat(){
+    var input=document.getElementById("ai-chat-input");
+    var q=input.value.trim();
+    if(!q) return;
+    addMsg(q, true);
+    input.value="";
+    setTimeout(function(){
+      var response=aiResponse(q);
+      addMsg(response, false);
+    }, 400);
+  }
+
+  document.getElementById("ai-chat-send").addEventListener("click", sendChat);
+  document.getElementById("ai-chat-input").addEventListener("keydown", function(e){
+    if(e.key==="Enter") sendChat();
+  });
+
+  /* Auto welcome message */
+  addMsg(lang?"\u00a1Hola Dave! Soy TaxMate AI. Preguntame lo que quieras sobre tus finanzas y taxes.":"Hi Dave! I am TaxMate AI. Ask me anything about your finances and taxes.", false);
+}
+
+/* Hook into navigate to re-render AI section when going to dashboard */
+var _pNav38=window.navigate;
+window.navigate=function(page){
+  if(typeof _pNav38==="function") _pNav38(page);
+  if(page==="dashboard") setTimeout(renderAISection, 300);
+};
+
+/* Initial render */
+renderAISection();
+
+},3000);
+})();
+</script>\n</html>
