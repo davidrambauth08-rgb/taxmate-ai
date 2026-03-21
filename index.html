@@ -3910,8 +3910,8 @@ window.calcTax=function(){
 
   /* === 5. AUTO-SHOW on load === */
   setTimeout(function(){
-    var appEl=document.getElementById('app');
-    if(!appEl||appEl.style.display==='none')return;
+    var appEl=document.getElementById('appShell');
+    if(!appEl||getComputedStyle(appEl).display==='none')return;
     showMonthlyCheckin();
     /* If already on dashboard, inject progress */
     var dp=document.getElementById('page-dashboard');
@@ -3984,8 +3984,8 @@ window.calcTax=function(){
     if(_origShowApp)_origShowApp();
     /* After app loads, show check-in if needed (with delay) */
     setTimeout(function(){
-      var appEl=document.getElementById('app');
-      if(!appEl||appEl.style.display==='none')return;
+      var appEl=document.getElementById('appShell');
+      if(!appEl||getComputedStyle(appEl).display==='none')return;
       var user=localStorage.getItem('taxmate-user');
       if(!user)return;
       var now=new Date();
@@ -4029,7 +4029,7 @@ window.calcTax=function(){
   /* The v2.9 setTimeout showMonthlyCheckin runs at 1500ms - neutralize it */
   var existingOverlay=document.getElementById('monthly-checkin-overlay');
   if(existingOverlay){
-    var appEl=document.getElementById('app');
+    var appEl=document.getElementById('appShell');
     if(!appEl||appEl.style.display==='none'){existingOverlay.remove();}
   }
 })();
