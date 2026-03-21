@@ -2528,177 +2528,45 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 </script>
 
 <script>
-/* TaxMate AI v1.1 - Persistence, Delete, Export, Dark Mode Fix */
+// TaxMate AI v2.0 Patch — Full field capture, real KPIs, validation, search, backup/restore
 (function(){
-  try { incomeData = JSON.parse(localStorage.getItem("taxmate-income")) || []; } catch(e){ incomeData = []; }
-  try { expenseData = JSON.parse(localStorage.getItem("taxmate-expenses")) || []; } catch(e){ expenseData = []; }
-  try { invoiceData = JSON.parse(localStorage.getItem("taxmate-invoices")) || []; } catch(e){ invoiceData = []; }
-  if(typeof renderIncome==="function") renderIncome();
-  if(typeof renderExpenses==="function") renderExpenses();
-  if(typeof renderInvoices==="function") renderInvoices();
-  function updateKPIs(){
-    var totalInc = incomeData.reduce(function(s,i){ return s + (parseFloat(i.amount)||0); }, 0);
-    var totalExp = expenseData.reduce(function(s,i){ return s + (parseFloat(i.amount)||0); }, 0);
-    var estTax = typeof calcAusTax==="function" ? calcAusTax(totalInc) : totalInc * 0.25;
-    var profit = totalInc - totalExp;
-    var fmt = function(n){ return "$" + n.toLocaleString("en-AU",{minimumFractionDigits:0,maximumFractionDigits:0}); };
-    var el;
-    el=document.getElementById("kpiIncomeValue"); if(el) el.textContent=fmt(totalInc);
-    el=document.getElementById("kpiExpValue"); if(el) el.textContent=fmt(totalExp);
-    el=document.getElementById("kpiTaxValue"); if(el) el.textContent=fmt(estTax);
-    el=document.getElementById("kpiProfitValue"); if(el) el.textContent=fmt(profit);
-  }
-  updateKPIs();
-  window._updateKPIs = updateKPIs;
-
-  function makeDelBtn(text, handler){
-    var btn = document.createElement("button");
-    btn.className = "del-btn";
-    btn.textContent = text;
-    btn.style.cssText = "background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;";
-    btn.onclick = handler;
-    return btn;
-  }
-  window.deleteIncome = function(idx){
-    if(!confirm("Delete this income entry?")) return;
-    incomeData.splice(idx, 1);
-    localStorage.setItem("taxmate-income", JSON.stringify(incomeData));
-    renderIncome(); updateKPIs();
-    showToast("Income deleted","info");
-  };
-  window.deleteExpense = function(idx){
-    if(!confirm("Delete this expense?")) return;
-    expenseData.splice(idx, 1);
-    localStorage.setItem("taxmate-expenses", JSON.stringify(expenseData));
-    renderExpenses(); updateKPIs();
-    showToast("Expense deleted","info");
-  };
-  window.deleteInvoice = function(idx){
-    if(!confirm("Delete this invoice?")) return;
-    invoiceData.splice(idx, 1);
-    localStorage.setItem("taxmate-invoices", JSON.stringify(invoiceData));
-    renderInvoices(); updateKPIs();
-    showToast("Invoice deleted","info");
-  };
-
-  window.exportCSV = function(type){
-    var data, headers, filename;
-    if(type==="income"){
-      headers=["Date","Client","Description","Category","Amount","GST","Status"];
-      data=incomeData; filename="taxmate-income.csv";
-    } else if(type==="expenses"){
-      headers=["Date","Vendor","Description","Category","Amount","GST","Status"];
-      data=expenseData; filename="taxmate-expenses.csv";
-    } else if(type==="invoices"){
-      headers=["Number","Client","Date","Due","Amount","Status"];
-      data=invoiceData; filename="taxmate-invoices.csv";
-    } else return;
-    if(!data||!data.length){ showToast("No data to export","warning"); return; }
-    var csv = headers.join(",") + "\n";
-    data.forEach(function(row){
-      var vals = headers.map(function(h){
-        var key = h.toLowerCase().replace(/ /g,"");
-        var v = row[key] || row[h.toLowerCase()] || "";
-        return '"' + String(v).replace(/"/g,'""')+'"';
-      });
-      csv += vals.join(",") + "\n";
-    });
-    var blob = new Blob([csv],{type:"text/csv"});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement("a"); a.href=url; a.download=filename; a.click();
-    URL.revokeObjectURL(url);
-    showToast("Exported "+filename,"success");
-  };
-  var origSaveIncome = window.saveIncome;
-  window.saveIncome = function(){
-    origSaveIncome.apply(this, arguments);
-    updateKPIs();
-  };
-  var origSaveExpense = window.saveExpense;
-  window.saveExpense = function(){
-    origSaveExpense.apply(this, arguments);
-    updateKPIs();
-  };
-  var origCreateInvoice = window.createInvoice;
-  window.createInvoice = function(){
-    origCreateInvoice.apply(this, arguments);
-    updateKPIs();
-  };
-
-  function addExportBtn(pageId, type){
-    var page = document.getElementById(pageId);
-    if(!page) return;
-    if(page.querySelector(".export-csv-btn")) return;
-    var header = page.querySelector("h2") || page.firstElementChild;
-    if(!header) return;
-    var btn = document.createElement("button");
-    btn.className = "export-csv-btn";
-    btn.textContent = "Export CSV";
-    btn.style.cssText = "margin-left:12px;padding:6px 16px;background:#0F2557;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;";
-    btn.onclick = function(){ exportCSV(type); };
-    header.appendChild(btn);
-  }
-  addExportBtn("page-income","income");
-  addExportBtn("page-expenses","expenses");
-  addExportBtn("page-invoices","invoices");
-
-  function addDeleteBtns(tableSelector, deleteFn){
-    var tbody = document.querySelector(tableSelector);
-    if(!tbody) return;
-    var rows = tbody.querySelectorAll("tr");
-    rows.forEach(function(row, idx){
-      if(row.querySelector(".del-btn")) return;
-      var td = document.createElement("td");
-      var btn = makeDelBtn("Delete", function(){ deleteFn(idx); });
-      td.appendChild(btn);
-      row.appendChild(td);
-    });
-  }
-
-  var origRenderIncome = window.renderIncome;
-  window.renderIncome = function(){
-    origRenderIncome.apply(this, arguments);
-    addDeleteBtns("#page-income tbody", deleteIncome);
-  };
-  var origRenderExpenses = window.renderExpenses;
-  window.renderExpenses = function(){
-    origRenderExpenses.apply(this, arguments);
-    addDeleteBtns("#page-expenses tbody", deleteExpense);
-  };
-  var origRenderInvoices = window.renderInvoices;
-  window.renderInvoices = function(){
-    origRenderInvoices.apply(this, arguments);
-    addDeleteBtns("#page-invoices tbody", deleteInvoice);
-  };
-
-  if(incomeData.length) renderIncome();
-  if(expenseData.length) renderExpenses();
-  if(invoiceData.length) renderInvoices();
-
-  var origSetTheme = window.setTheme;
-  window.setTheme = function(t){
-    origSetTheme.apply(this, arguments);
-    document.documentElement.setAttribute("data-theme", t);
-    document.body.setAttribute("data-theme", t);
-    localStorage.setItem("taxmate-theme", t);
-  };
-  var savedTheme = localStorage.getItem("taxmate-theme");
-  if(savedTheme) setTheme(savedTheme);
-
-  // Fix: add name attributes to form fields
-    var incInputs=document.querySelectorAll('#incomeModal input,#incomeModal select');
-    var incNames=['date','amount','client','category','inc_memo','payment_method','payment_status','gst'];
-    for(var i=0;i<incInputs.length&&i<incNames.length;i++){incInputs[i].name=incNames[i];}
-    
-    var expInputs=document.querySelectorAll('#expenseModal input,#expenseModal select');
-    var expNames=['date','amount','descr','category','memo','gst','deduction','receipt'];
-    for(var i=0;i<expInputs.length&&i<expNames.length;i++){expInputs[i].name=expNames[i];}
-    
-    var invInputs=document.querySelectorAll('#invoiceModal input,#invoiceModal select,#invoiceModal textarea');
-    var invNames=['invoice_number','date','client','inv_due','inv_email','inv_abn','item_description','amount','gst_option','memo','status'];
-    for(var i=0;i<invInputs.length&&i<invNames.length;i++){invInputs[i].name=invNames[i];}
-    
-    console.log("TaxMate AI v1.1 loaded. Inc:"+incomeData.length+" Exp:"+expenseData.length+" Inv:"+invoiceData.length);
+"use strict";
+var incInputs=document.querySelectorAll("#incomeModal input,#incomeModal select");
+var incNames=["date","amount","client","category","inc_memo","payment_method","payment_status","gst"];
+for(var i=0;i<incInputs.length&&i<incNames.length;i++){incInputs[i].name=incNames[i];}
+var expInputs=document.querySelectorAll("#expenseModal input,#expenseModal select");
+var expNames=["date","amount","descr","category","memo","gst","deduction","receipt"];
+for(var i=0;i<expInputs.length&&i<expNames.length;i++){expInputs[i].name=expNames[i];}
+var invInputs=document.querySelectorAll("#invoiceModal input,#invoiceModal select,#invoiceModal textarea");
+var invNames=["invoice_number","date","client","inv_due","inv_email","inv_abn","item_description","amount","gst_option","memo","status"];
+for(var i=0;i<invInputs.length&&i<invNames.length;i++){invInputs[i].name=invNames[i];}
+var incomeData=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var expenseData=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var invoiceData=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+function getField(modalId,fieldName){var el=document.querySelector("#"+modalId+" [name=\""+fieldName+"\"]");return el?(el.type==="checkbox"?el.checked:el.value.trim()):"";}
+var origSaveIncome=window.saveIncome;
+window.saveIncome=function(){var entry={id:Date.now(),date:getField("incomeModal","date"),amount:parseFloat(getField("incomeModal","amount"))||0,source:getField("incomeModal","client"),category:getField("incomeModal","category"),memo:getField("incomeModal","inc_memo"),payment_method:getField("incomeModal","payment_method"),payment_status:getField("incomeModal","payment_status"),gst:getField("incomeModal","gst")};if(!entry.date||!entry.amount){showToast("Please fill in date and amount","error");return;}incomeData.push(entry);localStorage.setItem("taxmate-income",JSON.stringify(incomeData));if(typeof renderIncome==="function")renderIncome(incomeData);if(typeof renderRecentTransactions==="function")renderRecentTransactions();updateKPIs();closeModal("incomeModal");showToast("Income saved!");addDeleteBtns();};
+var origSaveExpense=window.saveExpense;
+window.saveExpense=function(){var entry={id:Date.now(),date:getField("expenseModal","date"),amount:parseFloat(getField("expenseModal","amount"))||0,description:getField("expenseModal","descr"),category:getField("expenseModal","category"),memo:getField("expenseModal","memo"),gst:getField("expenseModal","gst"),deduction:getField("expenseModal","deduction"),receipt:getField("expenseModal","receipt")};if(!entry.date||!entry.amount){showToast("Please fill in date and amount","error");return;}expenseData.push(entry);localStorage.setItem("taxmate-expenses",JSON.stringify(expenseData));if(typeof renderExpenses==="function")renderExpenses(expenseData);if(typeof renderRecentTransactions==="function")renderRecentTransactions();updateKPIs();closeModal("expenseModal");showToast("Expense saved!");addDeleteBtns();};
+var origCreateInvoice=window.createInvoice;
+window.createInvoice=function(){var entry={id:Date.now(),invoice_number:getField("invoiceModal","invoice_number"),date:getField("invoiceModal","date"),client:getField("invoiceModal","client"),due:getField("invoiceModal","inv_due"),email:getField("invoiceModal","inv_email"),abn:getField("invoiceModal","inv_abn"),items:getField("invoiceModal","item_description"),amount:parseFloat(getField("invoiceModal","amount"))||0,gst_option:getField("invoiceModal","gst_option"),memo:getField("invoiceModal","memo"),status:getField("invoiceModal","status")||"Draft"};if(!entry.date||!entry.amount){showToast("Please fill in date and amount","error");return;}invoiceData.push(entry);localStorage.setItem("taxmate-invoices",JSON.stringify(invoiceData));if(typeof renderInvoices==="function")renderInvoices(invoiceData);updateKPIs();closeModal("invoiceModal");showToast("Invoice created!");addDeleteBtns();};
+function updateKPIs(){var totalInc=incomeData.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);var totalExp=expenseData.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);var profit=totalInc-totalExp;var estTax=profit>0?profit*0.30:0;var totalInv=invoiceData.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);var paidInv=invoiceData.filter(function(e){return(e.status||"").toLowerCase()==="paid";});var unpaidInv=invoiceData.filter(function(e){return(e.status||"").toLowerCase()!=="paid";});var totalPaid=paidInv.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);var totalUnpaid=unpaidInv.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);var fmt=function(n){return"$"+Math.abs(n).toLocaleString("en-AU",{minimumFractionDigits:2,maximumFractionDigits:2});};var kpiMap={"Total Income":fmt(totalInc),"Total Expenses":fmt(totalExp),"Net Profit":(profit<0?"-":"")+fmt(profit),"Est. Tax":fmt(estTax)};document.querySelectorAll(".kpi-card,.stat-card,[class*=kpi]").forEach(function(card){var title=card.querySelector("h3,h4,.kpi-title,.stat-title");var value=card.querySelector(".kpi-value,.stat-value,h2");if(title&&value){var t=title.textContent.trim();for(var k in kpiMap){if(t.indexOf(k)!==-1){value.textContent=kpiMap[k];break;}}}});
+var incPage=document.getElementById("income-page")||document.querySelector("[data-page=income]");if(incPage){incPage.querySelectorAll(".summary-card,.stat-card,.mini-card").forEach(function(card){var label=card.querySelector("span,p,h4,h5");var val=card.querySelector("h3,h2,.value");if(!label||!val)return;var lt=label.textContent.toLowerCase();if(lt.indexOf("total")!==-1||lt.indexOf("income")!==-1)val.textContent=fmt(totalInc);else if(lt.indexOf("transaction")!==-1||lt.indexOf("entries")!==-1||lt.indexOf("count")!==-1)val.textContent=incomeData.length;else if(lt.indexOf("average")!==-1||lt.indexOf("avg")!==-1)val.textContent=incomeData.length?fmt(totalInc/incomeData.length):"$0.00";else if(lt.indexOf("month")!==-1){var now=new Date();var cm=now.getMonth();var cy=now.getFullYear();var mt=incomeData.filter(function(e){var d=new Date(e.date);return d.getMonth()===cm&&d.getFullYear()===cy;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);val.textContent=fmt(mt);}});}var expPage=document.getElementById("expenses-page")||document.querySelector("[data-page=expenses]");if(expPage){expPage.querySelectorAll(".summary-card,.stat-card,.mini-card").forEach(function(card){var label=card.querySelector("span,p,h4,h5");var val=card.querySelector("h3,h2,.value");if(!label||!val)return;var lt=label.textContent.toLowerCase();if(lt.indexOf("total")!==-1||lt.indexOf("expense")!==-1)val.textContent=fmt(totalExp);else if(lt.indexOf("transaction")!==-1||lt.indexOf("entries")!==-1||lt.indexOf("count")!==-1)val.textContent=expenseData.length;else if(lt.indexOf("deduct")!==-1){var dt=expenseData.filter(function(e){return e.deduction==="Yes"||e.deduction===true;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);val.textContent=fmt(dt);}else if(lt.indexOf("month")!==-1){var now=new Date();var cm=now.getMonth();var cy=now.getFullYear();var mt=expenseData.filter(function(e){var d=new Date(e.date);return d.getMonth()===cm&&d.getFullYear()===cy;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);val.textContent=fmt(mt);}});}var invPage=document.getElementById("invoices-page")||document.querySelector("[data-page=invoices]");if(invPage){invPage.querySelectorAll(".summary-card,.stat-card,.mini-card").forEach(function(card){var label=card.querySelector("span,p,h4,h5");var val=card.querySelector("h3,h2,.value");if(!label||!val)return;var lt=label.textContent.toLowerCase();if(lt.indexOf("total")!==-1&&lt.indexOf("invoic")!==-1)val.textContent=fmt(totalInv);else if(lt.indexOf("paid")!==-1&&lt.indexOf("un")===-1)val.textContent=fmt(totalPaid);else if(lt.indexOf("unpaid")!==-1||lt.indexOf("outstanding")!==-1)val.textContent=fmt(totalUnpaid);else if(lt.indexOf("count")!==-1||lt.indexOf("number")!==-1)val.textContent=invoiceData.length;});}}
+function deleteIncome(id){if(!confirm("Delete this income entry?"))return;incomeData=incomeData.filter(function(e){return e.id!==id;});localStorage.setItem("taxmate-income",JSON.stringify(incomeData));if(typeof renderIncome==="function")renderIncome(incomeData);updateKPIs();addDeleteBtns();showToast("Income deleted");}
+function deleteExpense(id){if(!confirm("Delete this expense entry?"))return;expenseData=expenseData.filter(function(e){return e.id!==id;});localStorage.setItem("taxmate-expenses",JSON.stringify(expenseData));if(typeof renderExpenses==="function")renderExpenses(expenseData);updateKPIs();addDeleteBtns();showToast("Expense deleted");}
+function deleteInvoice(id){if(!confirm("Delete this invoice?"))return;invoiceData=invoiceData.filter(function(e){return e.id!==id;});localStorage.setItem("taxmate-invoices",JSON.stringify(invoiceData));if(typeof renderInvoices==="function")renderInvoices(invoiceData);updateKPIs();addDeleteBtns();showToast("Invoice deleted");}
+window.deleteIncome=deleteIncome;window.deleteExpense=deleteExpense;window.deleteInvoice=deleteInvoice;
+function makeDelBtn(type,id){var btn=document.createElement("button");btn.textContent="\u2715";btn.title="Delete";btn.style.cssText="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:13px;margin-left:4px;";btn.onclick=function(){window["delete"+type](id);};return btn;}
+function addDeleteBtns(){var tables=[["#income-page table tbody,[data-page=income] table tbody",incomeData,"Income"],["#expenses-page table tbody,[data-page=expenses] table tbody",expenseData,"Expense"],["#invoices-page table tbody,[data-page=invoices] table tbody",invoiceData,"Invoice"]];tables.forEach(function(t){var tb=document.querySelector(t[0]);if(!tb)return;var rows=tb.querySelectorAll("tr");rows.forEach(function(row,i){if(i<t[1].length&&!row.querySelector(".del-btn")){var td=row.querySelector("td:last-child")||document.createElement("td");if(!td.parentNode)row.appendChild(td);var btn=makeDelBtn(t[2],t[1][i].id);btn.className="del-btn";td.appendChild(btn);}});});}
+function addExportBtn(ps,dk){var page=document.querySelector(ps);if(!page)return;var header=page.querySelector("h1,h2,.page-header");if(!header||header.querySelector(".export-btn"))return;var btn=document.createElement("button");btn.className="export-btn";btn.textContent="\u2B07 Export CSV";btn.style.cssText="background:#2ecc71;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;margin-left:12px;";btn.onclick=function(){var data=JSON.parse(localStorage.getItem(dk)||"[]");if(!data.length){showToast("No data to export","error");return;}var keys=Object.keys(data[0]);var csv=keys.join(",")+"\n";data.forEach(function(row){var vals=keys.map(function(k){var v=(row[k]===undefined||row[k]===null)?"":String(row[k]);return v.indexOf(",")!==-1?'\"'+v.replace(/\"/g,'\"\"')+'\"'  :v;});csv+=vals.join(",")+"\n";});var blob=new Blob([csv],{type:"text/csv"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download=dk.replace("taxmate-","")+"_export.csv";a.click();URL.revokeObjectURL(url);showToast("CSV exported!");};header.appendChild(btn);}
+function addSearchBar(ps,dataArray,renderFn){var page=document.querySelector(ps);if(!page||page.querySelector(".search-bar"))return;var header=page.querySelector("h1,h2,.page-header");if(!header)return;var wrap=document.createElement("div");wrap.className="search-bar";wrap.style.cssText="margin:10px 0;display:flex;gap:8px;align-items:center;";var input=document.createElement("input");input.type="text";input.placeholder="Search...";input.style.cssText="padding:8px 12px;border:1px solid #ccc;border-radius:6px;flex:1;max-width:320px;font-size:14px;background:var(--bg-secondary,#f5f5f5);color:var(--text-primary,#333);";input.addEventListener("input",function(){var q=input.value.toLowerCase();if(!q){renderFn(dataArray);}else{var filtered=dataArray.filter(function(entry){return Object.values(entry).some(function(v){return String(v).toLowerCase().indexOf(q)!==-1;});});renderFn(filtered);}setTimeout(addDeleteBtns,100);});wrap.appendChild(input);header.parentNode.insertBefore(wrap,header.nextSibling);}
+function addBackupRestore(){var sp=document.getElementById("settings-page")||document.querySelector("[data-page=settings]");if(!sp||sp.querySelector(".backup-section"))return;var section=document.createElement("div");section.className="backup-section";section.style.cssText="margin:20px 0;padding:20px;border:1px solid var(--border-color,#ddd);border-radius:12px;background:var(--bg-secondary,#f9f9f9);";section.innerHTML='<h3 style="margin:0 0 12px 0;font-size:16px;">Backup & Restore</h3><p style="margin:0 0 12px 0;font-size:13px;color:var(--text-secondary,#666);">Export all your data as JSON or import a previous backup.</p><div style="display:flex;gap:10px;flex-wrap:wrap;"><button id="backupBtn" style="background:#3498db;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;">\u2B07 Backup Data</button><button id="restoreBtn" style="background:#e67e22;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;">\u2B06 Restore Data</button><input type="file" id="restoreFile" accept=".json" style="display:none;"></div>';sp.appendChild(section);document.getElementById("backupBtn").onclick=function(){var backup={version:"2.0",date:new Date().toISOString(),income:JSON.parse(localStorage.getItem("taxmate-income")||"[]"),expenses:JSON.parse(localStorage.getItem("taxmate-expenses")||"[]"),invoices:JSON.parse(localStorage.getItem("taxmate-invoices")||"[]"),settings:{lang:localStorage.getItem("taxmate-lang"),theme:localStorage.getItem("taxmate-theme"),visa:localStorage.getItem("taxmate-visa")}};var blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});var url=URL.createObjectURL(blob);var a=document.createElement("a");a.href=url;a.download="taxmate-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();URL.revokeObjectURL(url);showToast("Backup downloaded!");};document.getElementById("restoreBtn").onclick=function(){document.getElementById("restoreFile").click();};document.getElementById("restoreFile").onchange=function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var data=JSON.parse(ev.target.result);if(!data.income&&!data.expenses&&!data.invoices){showToast("Invalid backup file","error");return;}if(!confirm("This will replace all your current data. Continue?"))return;if(data.income){localStorage.setItem("taxmate-income",JSON.stringify(data.income));incomeData=data.income;}if(data.expenses){localStorage.setItem("taxmate-expenses",JSON.stringify(data.expenses));expenseData=data.expenses;}if(data.invoices){localStorage.setItem("taxmate-invoices",JSON.stringify(data.invoices));invoiceData=data.invoices;}if(typeof renderIncome==="function")renderIncome(incomeData);if(typeof renderExpenses==="function")renderExpenses(expenseData);if(typeof renderInvoices==="function")renderInvoices(invoiceData);updateKPIs();showToast("Data restored successfully!");}catch(err){showToast("Error reading backup: "+err.message,"error");}};reader.readAsText(file);};}
+var origSetTheme=window.setTheme;if(typeof origSetTheme==="function"){window.setTheme=function(theme){origSetTheme(theme);document.documentElement.setAttribute("data-theme",theme);document.body.setAttribute("data-theme",theme);};}
+var savedTheme=localStorage.getItem("taxmate-theme");if(savedTheme){document.documentElement.setAttribute("data-theme",savedTheme);document.body.setAttribute("data-theme",savedTheme);}
+if(typeof renderIncome==="function")renderIncome(incomeData);if(typeof renderExpenses==="function")renderExpenses(expenseData);if(typeof renderInvoices==="function")renderInvoices(invoiceData);updateKPIs();
+setTimeout(function(){addDeleteBtns();addExportBtn("#income-page,[data-page=income]","taxmate-income");addExportBtn("#expenses-page,[data-page=expenses]","taxmate-expenses");addExportBtn("#invoices-page,[data-page=invoices]","taxmate-invoices");addSearchBar("#income-page,[data-page=income]",incomeData,renderIncome);addSearchBar("#expenses-page,[data-page=expenses]",expenseData,renderExpenses);addSearchBar("#invoices-page,[data-page=invoices]",invoiceData,renderInvoices);addBackupRestore();},500);
+var origNavigate=window.navigate;if(typeof origNavigate==="function"){window.navigate=function(page){origNavigate(page);setTimeout(function(){addDeleteBtns();updateKPIs();addSearchBar("#income-page,[data-page=income]",incomeData,renderIncome);addSearchBar("#expenses-page,[data-page=expenses]",expenseData,renderExpenses);addSearchBar("#invoices-page,[data-page=invoices]",invoiceData,renderInvoices);addExportBtn("#income-page,[data-page=income]","taxmate-income");addExportBtn("#expenses-page,[data-page=expenses]","taxmate-expenses");addExportBtn("#invoices-page,[data-page=invoices]","taxmate-invoices");addBackupRestore();},200);};}
+window.updateKPIs=updateKPIs;console.log("TaxMate AI v2.0 patch loaded successfully");
 })();
 </script>
 </body>
