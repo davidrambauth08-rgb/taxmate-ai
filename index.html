@@ -2525,5 +2525,164 @@ document.addEventListener('DOMContentLoaded',function(){if(currentTheme==='dark'
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').then(function(r){console.log('SW registered:',r.scope);}).catch(function(e){console.log('SW failed:',e);});});}
 
+
+<script>
+/* === TaxMate AI v1.1 Patch: Persistence, Delete, Export, Validation === */
+(function(){
+  try { incomeData = JSON.parse(localStorage.getItem("taxmate-income")) || []; } catch(e){ incomeData = []; }
+  try { expenseData = JSON.parse(localStorage.getItem("taxmate-expenses")) || []; } catch(e){ expenseData = []; }
+  try { invoiceData = JSON.parse(localStorage.getItem("taxmate-invoices")) || []; } catch(e){ invoiceData = []; }
+  if(typeof renderIncome==="function") renderIncome();
+  if(typeof renderExpenses==="function") renderExpenses();
+  if(typeof renderInvoices==="function") renderInvoices();
+  function updateKPIs(){
+    var totalInc = incomeData.reduce(function(s,i){ return s + (parseFloat(i.amount)||0); }, 0);
+    var totalExp = expenseData.reduce(function(s,i){ return s + (parseFloat(i.amount)||0); }, 0);
+    var estTax = typeof calcAusTax==="function" ? calcAusTax(totalInc) : totalInc * 0.25;
+    var profit = totalInc - totalExp;
+    var fmt = function(n){ return "$" + n.toLocaleString("en-AU",{minimumFractionDigits:0,maximumFractionDigits:0}); };
+    var el;
+    el=document.getElementById("kpiIncomeValue"); if(el) el.textContent=fmt(totalInc);
+    el=document.getElementById("kpiExpValue"); if(el) el.textContent=fmt(totalExp);
+    el=document.getElementById("kpiTaxValue"); if(el) el.textContent=fmt(estTax);
+    el=document.getElementById("kpiProfitValue"); if(el) el.textContent=fmt(profit);
+  }
+  updateKPIs();
+  window._updateKPIs = updateKPIs;
+  window.deleteIncome = function(idx){
+    if(!confirm("Delete this income entry?")) return;
+    incomeData.splice(idx, 1);
+    localStorage.setItem("taxmate-income", JSON.stringify(incomeData));
+    renderIncome(); updateKPIs();
+    showToast("Income deleted","info");
+  };
+  window.deleteExpense = function(idx){
+    if(!confirm("Delete this expense?")) return;
+    expenseData.splice(idx, 1);
+    localStorage.setItem("taxmate-expenses", JSON.stringify(expenseData));
+    renderExpenses(); updateKPIs();
+    showToast("Expense deleted","info");
+  };
+  window.deleteInvoice = function(idx){
+    if(!confirm("Delete this invoice?")) return;
+    invoiceData.splice(idx, 1);
+    localStorage.setItem("taxmate-invoices", JSON.stringify(invoiceData));
+    renderInvoices(); updateKPIs();
+    showToast("Invoice deleted","info");
+  };
+  window.exportCSV = function(type){
+    var data, headers, filename;
+    if(type==="income"){
+      headers=["Date","Client","Description","Category","Amount","GST","Status"];
+      data=incomeData; filename="taxmate-income.csv";
+    } else if(type==="expenses"){
+      headers=["Date","Vendor","Description","Category","Amount","GST","Status"];
+      data=expenseData; filename="taxmate-expenses.csv";
+    } else if(type==="invoices"){
+      headers=["Number","Client","Date","Due","Amount","Status"];
+      data=invoiceData; filename="taxmate-invoices.csv";
+    } else return;
+    if(!data||!data.length){ showToast("No data to export","warning"); return; }
+    var csv = headers.join(",") + "\n";
+    data.forEach(function(row){
+      var vals = headers.map(function(h){
+        var key = h.toLowerCase().replace(/ /g,"");
+        var v = row[key] || row[h.toLowerCase()] || "";
+        return '"' + String(v).replace(/"/g,'""')+'"';
+      });
+      csv += vals.join(",") + "\n";
+    });
+    var blob = new Blob([csv],{type:"text/csv"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href=url; a.download=filename; a.click();
+    URL.revokeObjectURL(url);
+    showToast("Exported "+filename,"success");
+  };
+  var origSaveIncome = window.saveIncome;
+  window.saveIncome = function(){
+    origSaveIncome.apply(this, arguments);
+    updateKPIs();
+  };
+  var origSaveExpense = window.saveExpense;
+  window.saveExpense = function(){
+    origSaveExpense.apply(this, arguments);
+    updateKPIs();
+  };
+  var origCreateInvoice = window.createInvoice;
+  window.createInvoice = function(){
+    origCreateInvoice.apply(this, arguments);
+    updateKPIs();
+  };
+  function addExportBtn(pageId, type){
+    var page = document.getElementById(pageId);
+    if(!page) return;
+    var existing = page.querySelector(".export-csv-btn");
+    if(existing) return;
+    var header = page.querySelector("h2") || page.querySelector("header") || page.firstElementChild;
+    if(!header) return;
+    var btn = document.createElement("button");
+    btn.className = "export-csv-btn";
+    btn.textContent = "Export CSV";
+    btn.style.cssText = "margin-left:12px;padding:6px 16px;background:#0F2557;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;";
+    btn.onclick = function(){ exportCSV(type); };
+    header.appendChild(btn);
+  }
+  addExportBtn("page-income","income");
+  addExportBtn("page-expenses","expenses");
+  addExportBtn("page-invoices","invoices");
+  var origRenderIncome = window.renderIncome;
+  window.renderIncome = function(){
+    origRenderIncome.apply(this, arguments);
+    var tbody = document.getElementById("incomeTableBody") || document.querySelector("#page-income tbody");
+    if(!tbody) return;
+    var rows = tbody.querySelectorAll("tr");
+    rows.forEach(function(row, idx){
+      if(row.querySelector(".del-btn")) return;
+      var td = document.createElement("td");
+      td.innerHTML = '<button class="del-btn" onclick="deleteIncome('+idx+')" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Delete<\/button>';
+      row.appendChild(td);
+    });
+  };
+  var origRenderExpenses = window.renderExpenses;
+  window.renderExpenses = function(){
+    origRenderExpenses.apply(this, arguments);
+    var tbody = document.getElementById("expenseTableBody") || document.querySelector("#page-expenses tbody");
+    if(!tbody) return;
+    var rows = tbody.querySelectorAll("tr");
+    rows.forEach(function(row, idx){
+      if(row.querySelector(".del-btn")) return;
+      var td = document.createElement("td");
+      td.innerHTML = '<button class="del-btn" onclick="deleteExpense('+idx+')" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Delete<\/button>';
+      row.appendChild(td);
+    });
+  };
+  var origRenderInvoices = window.renderInvoices;
+  window.renderInvoices = function(){
+    origRenderInvoices.apply(this, arguments);
+    var tbody = document.getElementById("invoiceTableBody") || document.querySelector("#page-invoices tbody");
+    if(!tbody) return;
+    var rows = tbody.querySelectorAll("tr");
+    rows.forEach(function(row, idx){
+      if(row.querySelector(".del-btn")) return;
+      var td = document.createElement("td");
+      td.innerHTML = '<button class="del-btn" onclick="deleteInvoice('+idx+')" style="background:#e74c3c;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:12px;">Delete<\/button>';
+      row.appendChild(td);
+    });
+  };
+  if(incomeData.length) renderIncome();
+  if(expenseData.length) renderExpenses();
+  if(invoiceData.length) renderInvoices();
+  var origSetTheme = window.setTheme;
+  window.setTheme = function(t){
+    origSetTheme.apply(this, arguments);
+    document.documentElement.setAttribute("data-theme", t);
+    document.body.setAttribute("data-theme", t);
+    localStorage.setItem("taxmate-theme", t);
+  };
+  var savedTheme = localStorage.getItem("taxmate-theme");
+  if(savedTheme) setTheme(savedTheme);
+  console.log("TaxMate AI v1.1 patch loaded. Inc:"+incomeData.length+" Exp:"+expenseData.length+" Inv:"+invoiceData.length);
+})();
+<\/script>
 </body>
 </html>
