@@ -4372,5 +4372,128 @@ window.calcTax=function(){
         })();
     </script>
     </script>
+    <script>
+        /* v3.2: Fix dashboard stat translations + receipt upload + more i18n */
+        (function(){
+            var LANG=localStorage.getItem('taxmate-lang')||'en';
+            if(LANG!=='es')return;
+            var MAP={
+                'TOTAL INCOME':'INGRESO TOTAL','TOTAL EXPENSES':'GASTOS TOTALES',
+                'ESTIMATED TAX':'IMPUESTO ESTIMADO','NET PROFIT':'GANANCIA NETA',
+                'GST CREDITS (ITC)':'CREDITOS GST (ITC)','DEDUCTIBLE EXPENSES':'GASTOS DEDUCIBLES',
+                'SUPPLIER':'PROVEEDOR','RECEIPT':'RECIBO','DEDUCTIBLE':'DEDUCIBLE',
+                'Last updated just now':'Actualizado justo ahora',
+                'Based on 1-month run rate':'Basado en tasa de 1 mes',
+                'Net after expenses':'Neto despues de gastos',
+                'Above market!':'Sobre el mercado!',
+                'Full Report':'Reporte Completo',
+                'You could be investing ~$890/month':'Podrias invertir ~$890/mes',
+                'Based on your net profit after tax. See personalised investment options for Australia.':'Basado en tu ganancia neta. Ve opciones de inversion personalizadas para Australia.',
+                'Grow My Money':'Hacer Crecer Mi Dinero',
+                'Monthly overview':'Resumen mensual','Income':'Ingresos','Expenses':'Gastos',
+                'Working Holiday, Student, PR and Citizens are all taxed differently in Australia.':'Working Holiday, Estudiantes, PR y Ciudadanos pagan impuestos diferentes en Australia.',
+                'Your earnings vs. the market':'Tus ingresos vs. el mercado',
+                'No expenses recorded yet':'Aun no hay gastos registrados',
+                'Search expenses...':'Buscar gastos...',
+                'Upload Receipt':'Subir Recibo','No file chosen':'Sin archivo',
+                'Drag receipt here or click to upload':'Arrastra el recibo aqui o haz clic para subir',
+                '+ Add Expense':'+ Agregar Gasto','Add Expense':'Agregar Gasto',
+                'Save Expense':'Guardar Gasto',
+                'Vendor Name':'Nombre del Proveedor','Vendor or store name':'Nombre del proveedor o tienda'
+            };
+            function fixStatCards(){
+                var cards=document.querySelectorAll('.stat-card,.summary-card,[class*="stat"],[class*="card"]');
+                cards.forEach(function(card){
+                      var spans=card.querySelectorAll('span,div,p,small,h3,h4');
+                      spans.forEach(function(sp){
+                              for(var i=0;i<sp.childNodes.length;i++){
+                                        var n=sp.childNodes[i];
+                                        if(n.nodeType===3){
+                                                    var t=n.textContent.trim();
+                                                    if(t.length<2)continue;
+                                                    var u=t.toUpperCase();
+                                                    if(MAP[u]){n.textContent=n.textContent.replace(t,MAP[u]);}
+                                                    else if(MAP[t]){n.textContent=n.textContent.replace(t,MAP[t]);}
+                                        }
+                              }
+                      });
+                });
+                /* Also scan ALL elements with uppercase text for stat headers */
+                var all=document.querySelectorAll('span,div,small');
+                for(var i=0;i<all.length;i++){
+                      var el=all[i];
+                      for(var j=0;j<el.childNodes.length;j++){
+                              var nd=el.childNodes[j];
+                              if(nd.nodeType===3){
+                                        var tx=nd.textContent.trim();
+                                        if(tx.length<2)continue;
+                                        if(MAP[tx])nd.textContent=nd.textContent.replace(tx,MAP[tx]);
+                                        if(MAP[tx.toUpperCase()])nd.textContent=nd.textContent.replace(tx,MAP[tx.toUpperCase()]);
+                              }
+                      }
+                }
+                /* Translate table headers */
+                var ths=document.querySelectorAll('th');
+                ths.forEach(function(th){
+                      var t=th.textContent.trim();
+                      if(MAP[t])th.textContent=MAP[t];
+                      if(MAP[t.toUpperCase()])th.textContent=MAP[t.toUpperCase()];
+                });
+                /* Translate buttons text */
+                var btns=document.querySelectorAll('button,a');
+                btns.forEach(function(b){
+                      for(var k=0;k<b.childNodes.length;k++){
+                              var nd=b.childNodes[k];
+                              if(nd.nodeType===3){
+                                        var tx=nd.textContent.trim();
+                                        if(MAP[tx])nd.textContent=nd.textContent.replace(tx,MAP[tx]);
+                              }
+                      }
+                });
+            }
+            /* === Receipt Upload Placeholder === */
+            function addReceiptUpload(){
+                var expPage=document.getElementById('page-expenses');
+                if(!expPage)return;
+                var existing=expPage.querySelector('.receipt-upload-area');
+                if(existing)return;
+                var tables=expPage.querySelectorAll('table');
+                if(tables.length===0)return;
+                var container=tables[0].parentElement;
+                var div=document.createElement('div');
+                div.className='receipt-upload-area';
+                div.style.cssText='margin:16px 0;padding:20px;border:2px dashed var(--border);border-radius:var(--radius);text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface);';
+                var lbl=LANG==='es'?'Arrastra recibos aqui o haz clic para subir':'Drag receipts here or click to upload';
+                var icon='&#128206;';
+                div.innerHTML='<div style="font-size:24px;margin-bottom:8px;">'+icon+' <span style="font-size:14px;color:var(--text2);">'+lbl+'</span></div><input type="file" accept="image/*,.pdf" multiple style="display:none;" id="receiptUpload"><small style="color:var(--text2);">PNG, JPG, PDF — max 5MB</small>';
+                div.onclick=function(){document.getElementById('receiptUpload').click();};
+                div.onmouseenter=function(){div.style.borderColor='var(--blue)';div.style.background='var(--blue-light)';};
+                div.onmouseleave=function(){div.style.borderColor='var(--border)';div.style.background='var(--surface)';};
+                var fileInput=div.querySelector('input[type="file"]');
+                fileInput.onchange=function(e){
+                      var files=e.target.files;
+                      if(!files.length)return;
+                      var msg=LANG==='es'?files.length+' recibo(s) seleccionado(s). Funcion de almacenamiento proximamente!':files.length+' receipt(s) selected. Storage feature coming soon!';
+                      var toast=document.createElement('div');
+                      toast.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--blue);color:white;padding:12px 24px;border-radius:8px;z-index:10000;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+                      toast.textContent=msg;
+                      document.body.appendChild(toast);
+                      setTimeout(function(){toast.remove();},3000);
+                };
+                container.insertBefore(div,tables[0]);
+            }
+            /* Run fixes */
+            var _pNav32=window.navigate;
+            window.navigate=function(p){
+                if(p==='ai')p='insights';
+                if(_pNav32)_pNav32(p);
+                setTimeout(fixStatCards,350);
+                setTimeout(function(){if(p==='expenses')addReceiptUpload();},400);
+            };
+            setTimeout(fixStatCards,1500);
+            setTimeout(function(){addReceiptUpload();},1600);
+        })();
+    </script>
+    </script>
 </body>
 </html>
