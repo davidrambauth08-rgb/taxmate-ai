@@ -11,7 +11,7 @@
     <link rel="apple-touch-icon" href="/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" async></script>
 <script src="https://unpkg.com/roughjs@4.6.0/bundled/rough.js" async></script>
-<style
+<style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Caveat:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap');
 
   *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
@@ -3507,9 +3507,12 @@ setTimeout(run,1500);
 setTimeout(function(){
 var s=document.querySelector("style");
 if(!s||s.textContent.length>30000)return;
-fetch(location.pathname).then(function(r){return r.text();}).then(function(h){
-var a=h.indexOf("<style>")+7,b=h.indexOf("</style>");
-if(a>6&&b>a){var css=h.substring(a,b);if(css.length>s.textContent.length)s.textContent=css;}
+fetch(location.href).then(function(r){return r.text();}).then(function(h){
+var a=h.indexOf("<sty"+"le");if(a<0)return;
+var nl=h.indexOf("\n",a);if(nl<0)return;
+var b=h.indexOf("</sty"+"le");if(b<0||b<nl)return;
+var css=h.substring(nl+1,b);
+if(css.length>s.textContent.length){s.textContent=css;}
 });
 },2000);
 })();
