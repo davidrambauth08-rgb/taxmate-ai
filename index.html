@@ -2572,45 +2572,66 @@ console.log("TaxMate AI v2.0 patch loaded successfully");
 </script>
 
 <script>
-/* v2.1 — Override render functions to always read from localStorage */
+/* v2.1 — Override render+KPI functions to use localStorage */
 (function(){
+function setKPI(pid,label,val){var pg=document.getElementById(pid);if(!pg)return;var ls=pg.querySelectorAll(".kpi-label");for(var i=0;i<ls.length;i++){if(ls[i].textContent.trim()===label){var v=ls[i].nextElementSibling;if(v)v.textContent="$"+Math.round(val).toLocaleString();}}}
+window.updateKPIs=function(){
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var inv=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+var now=new Date(),cm=now.getMonth(),cy=now.getFullYear();
+var ti=inc.reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+var mi=inc.filter(function(r){var d=new Date(r.date);return d.getMonth()===cm&&d.getFullYear()===cy;}).reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+var oi=inc.filter(function(r){return r.payment_status&&r.payment_status.toLowerCase()!=="paid";}).reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+setKPI("page-income","Total Income",ti);setKPI("page-income","This Month",mi);setKPI("page-income","Outstanding",oi);
+var te=exp.reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+var gc=exp.filter(function(r){return r.gst&&r.gst.toString().toLowerCase().indexOf("yes")>-1;}).reduce(function(s,r){return s+Math.round((Number(r.amount)||0)/11);},0);
+var de=exp.filter(function(r){return r.deduction&&r.deduction.toString().toLowerCase()!=="no";}).reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+setKPI("page-expenses","Total Expenses",te);setKPI("page-expenses","GST Credits (ITC)",gc);setKPI("page-expenses","Deductible Expenses",de);
+var tv=inv.reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+var oiv=inv.filter(function(r){return !r.status||r.status.toLowerCase()!=="paid";}).reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+var od=inv.filter(function(r){return r.status&&r.status.toLowerCase()==="overdue";}).reduce(function(s,r){return s+(Number(r.amount)||0);},0);
+setKPI("page-invoices","Total Invoiced",tv);setKPI("page-invoices","Outstanding",oiv);setKPI("page-invoices","Overdue",od);
+};
 window.renderIncome=function(){
-var tbody=document.querySelector('#page-income tbody');if(!tbody)return;
-var data=JSON.parse(localStorage.getItem('taxmate-income')||'[]');
-tbody.innerHTML='';
-if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No income recorded yet</td></tr>';return;}
+var tbody=document.querySelector("#page-income tbody");if(!tbody)return;
+var data=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+tbody.innerHTML="";
+if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No income recorded yet</td></tr>';updateKPIs();return;}
 data.slice().reverse().forEach(function(r){
-var tr=document.createElement('tr');
-tr.innerHTML='<td>'+(r.date||'')+'</td><td>'+(r.source||'')+'</td><td>'+(r.memo||'')+'</td><td>'+(r.category||'')+'</td><td>$'+(r.amount||0).toLocaleString()+'</td><td>'+(r.gst||'No')+'</td><td>'+(r.payment_status||'')+'</td><td></td>';
+var tr=document.createElement("tr");
+tr.innerHTML="<td>"+(r.date||"")+"</td><td>"+(r.source||"")+"</td><td>"+(r.memo||"")+"</td><td>"+(r.category||"")+"</td><td>$"+(r.amount||0).toLocaleString()+"</td><td>"+(r.gst||"No")+"</td><td>"+(r.payment_status||"")+"</td><td></td>";
 tbody.appendChild(tr);
 });
-if(typeof addDeleteBtns==='function')addDeleteBtns();
+if(typeof addDeleteBtns==="function")addDeleteBtns();updateKPIs();
 };
 window.renderExpenses=function(){
-var tbody=document.querySelector('#page-expenses tbody');if(!tbody)return;
-var data=JSON.parse(localStorage.getItem('taxmate-expenses')||'[]');
-tbody.innerHTML='';
-if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No expenses recorded yet</td></tr>';return;}
+var tbody=document.querySelector("#page-expenses tbody");if(!tbody)return;
+var data=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+tbody.innerHTML="";
+if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No expenses recorded yet</td></tr>';updateKPIs();return;}
 data.slice().reverse().forEach(function(r){
-var tr=document.createElement('tr');
-tr.innerHTML='<td>'+(r.date||'')+'</td><td>'+(r.descr||r.description||'')+'</td><td>'+(r.category||'')+'</td><td>$'+(r.amount||0).toLocaleString()+'</td><td>'+(r.gst||'No')+'</td><td>'+(r.deduction||'No')+'</td><td>'+(r.receipt||'')+'</td><td></td>';
+var tr=document.createElement("tr");
+tr.innerHTML="<td>"+(r.date||"")+"</td><td>"+(r.descr||r.description||"")+"</td><td>"+(r.category||"")+"</td><td>$"+(r.amount||0).toLocaleString()+"</td><td>"+(r.gst||"No")+"</td><td>"+(r.deduction||"No")+"</td><td>"+(r.receipt||"")+"</td><td></td>";
 tbody.appendChild(tr);
 });
-if(typeof addDeleteBtns==='function')addDeleteBtns();
+if(typeof addDeleteBtns==="function")addDeleteBtns();updateKPIs();
 };
 window.renderInvoices=function(){
-var tbody=document.querySelector('#page-invoices tbody');if(!tbody)return;
-var data=JSON.parse(localStorage.getItem('taxmate-invoices')||'[]');
-tbody.innerHTML='';
-if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No invoices yet</td></tr>';return;}
+var tbody=document.querySelector("#page-invoices tbody");if(!tbody)return;
+var data=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+tbody.innerHTML="";
+if(!data.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;padding:2rem;opacity:.5">No invoices yet</td></tr>';updateKPIs();return;}
 data.slice().reverse().forEach(function(r){
-var tr=document.createElement('tr');
-var sc=r.status==='Paid'?'color:#22c55e':r.status==='Overdue'?'color:#ef4444':'color:#f59e0b';
-tr.innerHTML='<td>'+(r.invoice_number||'')+'</td><td>'+(r.client||'')+'</td><td>'+(r.date||'')+'</td><td>'+(r.inv_due||'')+'</td><td>$'+(r.amount||0).toLocaleString()+'</td><td>'+(r.gst_option||'No')+'</td><td style="'+sc+';font-weight:600">'+(r.status||'Draft')+'</td><td style="cursor:pointer" onclick="showInvoice('+r.id+')">View</td>';
+var tr=document.createElement("tr");
+var sc=r.status==="Paid"?"color:#22c55e":r.status==="Overdue"?"color:#ef4444":"color:#f59e0b";
+tr.innerHTML="<td>"+(r.invoice_number||"")+"</td><td>"+(r.client||"")+"</td><td>"+(r.date||"")+"</td><td>"+(r.inv_due||"")+"</td><td>$"+(r.amount||0).toLocaleString()+"</td><td>"+(r.gst_option||"No")+"</td><td style=\""+sc+";font-weight:600\">"+(r.status||"Draft")+"</td><td style=\"cursor:pointer\" onclick=\"showInvoice("+r.id+")\">View</td>";
 tbody.appendChild(tr);
 });
-if(typeof addDeleteBtns==='function')addDeleteBtns();
+if(typeof addDeleteBtns==="function")addDeleteBtns();updateKPIs();
 };
+var origNav=window.navigate;if(typeof origNav==="function"){window.navigate=function(p){origNav(p);setTimeout(updateKPIs,100);};}
+setTimeout(updateKPIs,300);
 })();
 </script>
 </body>
