@@ -2687,15 +2687,15 @@ if('serviceWorker' in navigator){window.addEventListener('load',function(){navig
 
   // Fix: add name attributes to form fields
     var incInputs=document.querySelectorAll('#incomeModal input,#incomeModal select');
-    var incNames=['date','amount','client','category','description','payment_method','payment_status','gst'];
+    var incNames=['date','amount','client','category','inc_memo','payment_method','payment_status','gst'];
     for(var i=0;i<incInputs.length&&i<incNames.length;i++){incInputs[i].name=incNames[i];}
     
     var expInputs=document.querySelectorAll('#expenseModal input,#expenseModal select');
-    var expNames=['date','amount','supplier','category','notes','gst','deduction','receipt'];
+    var expNames=['date','amount','descr','category','memo','gst','deduction','receipt'];
     for(var i=0;i<expInputs.length&&i<expNames.length;i++){expInputs[i].name=expNames[i];}
     
     var invInputs=document.querySelectorAll('#invoiceModal input,#invoiceModal select,#invoiceModal textarea');
-    var invNames=['invoice_number','date','client','due_date','client_email','client_abn','item_description','amount','gst_option','notes','status'];
+    var invNames=['invoice_number','date','client','inv_due','inv_email','inv_abn','item_description','amount','gst_option','memo','status'];
     for(var i=0;i<invInputs.length&&i<invNames.length;i++){invInputs[i].name=invNames[i];}
     
     console.log("TaxMate AI v1.1 loaded. Inc:"+incomeData.length+" Exp:"+expenseData.length+" Inv:"+invoiceData.length);
