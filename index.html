@@ -4903,5 +4903,91 @@ window.calcTax=function(){
         })();
     </script>
     </script>
+
+    <script>
+        /* v3.4.2: Fix saveVisa function name + modal close */
+        (function(){
+            window.saveVisa=function(){
+                var sv=localStorage.getItem('taxmate-visa');
+                if(!sv){
+                    /* Check if selectVisa was called by looking at card highlights */
+                    var cards=document.querySelectorAll('div[style*="cursor: pointer"],div[style*="cursor:pointer"]');
+                    var found=null;
+                    for(var i=0;i<cards.length;i++){
+                        if(cards[i].style.border&&cards[i].style.border.indexOf('--blue')>-1){
+                            var oc=cards[i].getAttribute('onclick')||'';
+                            var m=oc.match(/selectVisa\('([^']+)'/);
+                            if(m)found=m[1];
+                            break;
+                        }
+                    }
+                    if(!found){
+                        var LANG=localStorage.getItem('taxmate-lang')||'en';
+                        alert(LANG==='es'?'Por favor selecciona un tipo de visa':'Please select a visa type');
+                        return;
+                    }
+                    sv=found;
+                }
+                localStorage.setItem('taxmate-visa',sv);
+                var user=JSON.parse(localStorage.getItem('taxmate-user')||'{}');
+                var labels={citizen:'Citizen',skilled_work:'Skilled Work',working_holiday:'Working Holiday',student:'Student',business:'Business/Investor',other:'Other'};
+                user.visa=labels[sv]||sv;
+                localStorage.setItem('taxmate-user',JSON.stringify(user));
+                /* Close modal: remove all modal-bg overlays and the modal content */
+                document.querySelectorAll('.modal-bg').forEach(function(el){el.style.display='none';});
+                var closeBtn=document.querySelector('.modal-close');
+                if(closeBtn)closeBtn.click();
+                /* Update visa badge on dashboard */
+                var allEls=document.querySelectorAll('button,div,span');
+                for(var i=0;i<allEls.length;i++){
+                    if(allEls[i].textContent.indexOf('Visa:')>-1&&allEls[i].textContent.length<30){
+                        allEls[i].textContent='Visa: '+user.visa;break;
+                    }
+                }
+            };
+        })();
+    </script>
+    <script>
+        /* v3.4.2b: Make selectVisa store selection in localStorage */
+        (function(){
+            var _prevSelect=window.selectVisa;
+            window.selectVisa=function(type,el){
+                localStorage.setItem('taxmate-visa-pending',type);
+                if(_prevSelect)_prevSelect(type,el);
+            };
+        })();
+    </script>
+    <script>
+        /* v3.4.2c: Final saveVisa override using pending key */
+        (function(){
+            window.saveVisa=function(){
+                var sv=localStorage.getItem('taxmate-visa-pending');
+                if(!sv){
+                    var LANG=localStorage.getItem('taxmate-lang')||'en';
+                    alert(LANG==='es'?'Por favor selecciona un tipo de visa':'Please select a visa type');
+                    return;
+                }
+                localStorage.setItem('taxmate-visa',sv);
+                localStorage.removeItem('taxmate-visa-pending');
+                var user=JSON.parse(localStorage.getItem('taxmate-user')||'{}');
+                var labels={citizen:'Citizen',skilled_work:'Skilled Work',working_holiday:'Working Holiday',student:'Student',business:'Business/Investor',other:'Other'};
+                user.visa=labels[sv]||sv;
+                localStorage.setItem('taxmate-user',JSON.stringify(user));
+                /* Close modal */
+                document.querySelectorAll('.modal-bg').forEach(function(el){el.style.display='none';});
+                var closeBtn=document.querySelector('.modal-close');
+                if(closeBtn)closeBtn.click();
+                /* Update visa badge */
+                var allEls=document.querySelectorAll('button,div,span');
+                for(var i=0;i<allEls.length;i++){
+                    if(allEls[i].textContent.indexOf('Visa:')>-1&&allEls[i].textContent.length<30){
+                        allEls[i].textContent='Visa: '+user.visa;break;
+                    }
+                }
+            };
+        })();
+    </script>
+    </script>
+    </script>
 </body>
 </html>
