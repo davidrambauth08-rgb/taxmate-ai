@@ -3067,5 +3067,112 @@ window.navigate=function(p){oN(p);setTimeout(function(){
 setTimeout(function(){calcTax();fixReports();},700);
 })();
 </script>
+<script>
+/* v2.4 — Onboarding: registration form on first use, update sidebar with real user */
+(function(){
+
+/* 1. Inject onboarding CSS */
+var css=document.createElement("style");
+css.textContent="#onboarding-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#0F2557 0%,#162E6B 50%,#0F2557 100%);z-index:10000;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;}#onboarding-card{background:#fff;border-radius:16px;padding:48px;max-width:520px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);animation:fadeUp 0.5s ease;}@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}#onboarding-card h1{font-family:Playfair Display,serif;color:#0F2557;font-size:28px;margin:0 0 8px;}#onboarding-card p.sub{color:#64748B;font-size:14px;margin:0 0 28px;}#onboarding-card label{display:block;font-size:13px;font-weight:600;color:#0F2557;margin:0 0 6px;text-transform:uppercase;letter-spacing:0.5px;}#onboarding-card input,#onboarding-card select{width:100%;padding:12px 14px;border:1.5px solid #E4EAF5;border-radius:10px;font-size:15px;margin:0 0 18px;box-sizing:border-box;transition:border 0.2s;font-family:Inter,system-ui,sans-serif;}#onboarding-card input:focus,#onboarding-card select:focus{border-color:#0F2557;outline:none;box-shadow:0 0 0 3px rgba(15,37,87,0.1);}.ob-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;}#ob-submit{width:100%;padding:14px;background:#0F2557;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;margin-top:8px;transition:background 0.2s;}#ob-submit:hover{background:#162E6B;}.ob-logo{font-family:Playfair Display,serif;font-size:18px;color:#0F2557;margin-bottom:24px;}.ob-logo span{color:#E8843C;}";
+document.head.appendChild(css);
+
+/* 2. Build onboarding form */
+function showOnboarding(){
+  var ov=document.createElement("div");
+  ov.id="onboarding-overlay";
+  ov.innerHTML='<div id="onboarding-card">'+
+    '<div class="ob-logo">TaxMate<span> AI</span></div>'+
+    '<h1>Welcome! Let\'s set up your account</h1>'+
+    '<p class="sub">Tell us a bit about yourself so we can personalise your experience.</p>'+
+    '<label>Full Name *</label>'+
+    '<input id="ob-name" placeholder="e.g. Maria Lopez" required>'+
+    '<label>Email *</label>'+
+    '<input id="ob-email" type="email" placeholder="e.g. maria@example.com" required>'+
+    '<div class="ob-row">'+
+      '<div><label>Business Type</label>'+
+      '<select id="ob-btype"><option value="Tradie">Tradie</option><option value="Freelancer">Freelancer</option><option value="Small Business">Small Business</option><option value="Sole Trader">Sole Trader</option><option value="Other">Other</option></select></div>'+
+      '<div><label>Visa Status</label>'+
+      '<select id="ob-visa"><option value="Citizen">Citizen</option><option value="Permanent Resident">Permanent Resident</option><option value="Working Holiday">Working Holiday</option><option value="Student">Student</option><option value="Other">Other</option></select></div>'+
+    '</div>'+
+    '<div class="ob-row">'+
+      '<div><label>ABN (optional)</label>'+
+      '<input id="ob-abn" placeholder="e.g. 12 345 678 901"></div>'+
+      '<div><label>Business Name (optional)</label>'+
+      '<input id="ob-bizname" placeholder="e.g. Lopez Plumbing"></div>'+
+    '</div>'+
+    '<button id="ob-submit">Start Using TaxMate AI \u2192</button>'+
+  '</div>';
+  document.body.appendChild(ov);
+
+  document.getElementById("ob-submit").addEventListener("click",function(){
+    var name=document.getElementById("ob-name").value.trim();
+    var email=document.getElementById("ob-email").value.trim();
+    if(!name){document.getElementById("ob-name").style.borderColor="#DC2626";return;}
+    if(!email){document.getElementById("ob-email").style.borderColor="#DC2626";return;}
+    var user={
+      name:name,
+      email:email,
+      business_type:document.getElementById("ob-btype").value,
+      visa:document.getElementById("ob-visa").value,
+      abn:document.getElementById("ob-abn").value.trim(),
+      business_name:document.getElementById("ob-bizname").value.trim(),
+      created:new Date().toISOString()
+    };
+    localStorage.setItem("taxmate-user",JSON.stringify(user));
+    localStorage.setItem("taxmate-visa",user.visa);
+    ov.style.transition="opacity 0.3s";ov.style.opacity="0";
+    setTimeout(function(){ov.remove();updateSidebar();},300);
+  });
+}
+
+/* 3. Update sidebar with real user data */
+function updateSidebar(){
+  var raw=localStorage.getItem("taxmate-user");if(!raw)return;
+  var user=JSON.parse(raw);
+  var nameEl=document.querySelector(".user-name");
+  var typeEl=document.querySelector(".user-type");
+  var avatarEl=document.querySelector(".user-avatar");
+  if(nameEl)nameEl.textContent=user.name;
+  if(typeEl){
+    var parts=[];
+    if(user.business_type)parts.push(user.business_type);
+    if(user.abn)parts.push("ABN "+user.abn);
+    typeEl.textContent=parts.join(" \u00B7 ")||"";
+  }
+  if(avatarEl){
+    var initials=user.name.split(" ").map(function(w){return w[0];}).join("").toUpperCase().substring(0,2);
+    avatarEl.textContent=initials;
+  }
+}
+
+/* 4. Override showApp to check registration first */
+var origShowApp=window.showApp;
+window.showApp=function(){
+  var user=localStorage.getItem("taxmate-user");
+  if(!user){
+    if(origShowApp)origShowApp();
+    showOnboarding();
+  } else {
+    if(origShowApp)origShowApp();
+    updateSidebar();
+  }
+};
+
+/* 5. On page load: if already in app, update sidebar */
+var appShell=document.getElementById("appShell");
+if(appShell&&appShell.style.display!=="none"){
+  var user=localStorage.getItem("taxmate-user");
+  if(user)updateSidebar();
+}
+
+/* 6. Also update sidebar on navigate */
+var oNav=window.navigate;
+window.navigate=function(p){
+  oNav(p);
+  updateSidebar();
+};
+
+})();
+</script>
 </body>
 </html>
