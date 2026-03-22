@@ -6381,4 +6381,238 @@ if(p==="productivity"){setTimeout(injectProductivityChart,500);setTimeout(inject
 setTimeout(function(){injectDashboardChart();trimAI();injectProductivityChart();},3000);
 })();
 </script>
+<script>
+/* v4.4: Spanish translations fix + Enhanced Reports with Rough.js charts */
+(function(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+var es=lang==="es";
+if(!es) return;
+
+var COLORS=["#0F2557","#0D9488","#D97706","#DC2626","#7C3AED","#2563EB","#059669","#DB2777"];
+var FILLS=["#E8EEF9","#CCFBF1","#FEF3C7","#FEF2F2","#EDE9FE","#DBEAFE","#D1FAE5","#FCE7F3"];
+
+function fmt(n){return"$"+Math.round(n).toLocaleString("en-AU");}
+
+var TMAP={
+"GST Payable":"GST a Pagar","GST PAYABLE":"GST A PAGAR",
+"Monthly Summary":"Resumen Mensual",
+"Month":"Mes","Tax Reserve":"Reserva Impuestos","Invoices Sent":"Facturas Enviadas",
+"All Quarters":"Todos los Trimestres",
+"Financial reports and insights":"Reportes financieros y perspectivas",
+"Export CSV":"Exportar CSV","Export PDF":"Exportar PDF",
+"AI Insights":"Perspectivas IA",
+"Smart recommendations for your business":"Recomendaciones inteligentes para tu negocio",
+"AI-powered recommendations based on your financial data. Updated daily.":"Recomendaciones de IA basadas en tus datos financieros. Se actualiza diariamente.",
+"Overdue invoice":"Factura vencida","at risk":"en riesgo",
+"Fuel expenses up 40% this month":"Gastos de combustible subieron 40% este mes",
+"You may be able to claim more deductions":"Podr\u00edas reclamar m\u00e1s deducciones",
+"Set aside":"Reserva","for Q3 BAS":"para BAS Q3",
+"Income dropped 18% vs 3 months ago":"Ingresos bajaron 18% vs hace 3 meses",
+"Phone bill may be deductible":"Factura de tel\u00e9fono puede ser deducible",
+"Great work":"Buen trabajo","of expenses logged":"de gastos registrados",
+"BAS due in 12 days":"BAS vence en 12 d\u00edas","BAS due in":"BAS vence en","days":"d\u00edas",
+"Important Disclaimer \u2014 Not Financial Advice":"Aviso Importante \u2014 No es Asesor\u00eda Financiera",
+"Grow Your Money":"Haz Crecer tu Dinero",
+"AVAILABLE TO INVEST":"DISPONIBLE PARA INVERTIR",
+"After tax & expenses":"Despu\u00e9s de impuestos y gastos",
+"Your Investment Profile":"Tu Perfil de Inversi\u00f3n",
+"How much can you invest per month? (AUD)":"\u00bfCu\u00e1nto puedes invertir al mes? (AUD)",
+"Investment frequency":"Frecuencia de inversi\u00f3n",
+"Risk tolerance":"Tolerancia al riesgo","Financial goals":"Objetivos financieros",
+"select all that apply":"selecciona todos los que apliquen",
+"Investment experience":"Experiencia de inversi\u00f3n",
+"Short-term savings":"Ahorro a corto plazo","Long-term wealth":"Riqueza a largo plazo",
+"Retirement":"Jubilaci\u00f3n","Buy a house":"Comprar casa",
+"Beginner":"Principiante","Intermediate":"Intermedio","Advanced":"Avanzado",
+"Weekly":"Semanal","Fortnightly":"Quincenal","Monthly":"Mensual","Lump sum":"Suma global",
+"Low":"Bajo","Medium":"Medio","High":"Alto","suggested":"sugerido",
+"YOUR TAX-INVESTMENT CONNECTION":"TU CONEXI\u00d3N IMPUESTOS-INVERSI\u00d3N",
+"AFTER TAX":"DESPU\u00c9S DE IMPUESTOS","CAN INVEST/YR":"PUEDE INVERTIR/A\u00d1O",
+"If You Invested":"Si Invirtieras",
+"After 1 year":"Despu\u00e9s de 1 a\u00f1o","After 3 years":"Despu\u00e9s de 3 a\u00f1os",
+"After 10 years":"Despu\u00e9s de 10 a\u00f1os","compound growth":"crecimiento compuesto",
+"Productivity":"Productividad","Track your financial habits":"Rastrea tus h\u00e1bitos financieros",
+"entries":"registros","deductible items":"items deducibles"
+};
+
+function translateNode(root){
+if(!root)return;
+var walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false);
+var node;
+while(node=walker.nextNode()){
+var orig=node.nodeValue;
+if(!orig||orig.trim().length<3)continue;
+var trimmed=orig.trim();
+if(TMAP[trimmed]){node.nodeValue=orig.replace(trimmed,TMAP[trimmed]);continue;}
+var changed=orig;
+for(var en in TMAP){if(en.length>=6&&changed.indexOf(en)!==-1){changed=changed.split(en).join(TMAP[en]);}}
+if(changed!==orig)node.nodeValue=changed;
+}
+root.querySelectorAll("option,button,.kpi-label,th,.card-title,h2,h3,p,span,div,label").forEach(function(el){
+if(el.children.length>0)return;
+var t=el.textContent.trim();
+if(TMAP[t])el.textContent=TMAP[t];
+});
+}
+
+function translateAll(){
+["page-reports","page-insights","page-invest","page-productivity","page-dashboard"].forEach(function(id){
+var el=document.getElementById(id);
+if(el)translateNode(el);
+});
+}
+
+function makeChartContainer(id,title){
+var c=document.createElement("div");c.id=id;
+c.style.cssText="margin:20px 0;padding:20px;background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);";
+c.innerHTML='<h3 style="font-family:Caveat,cursive;font-size:22px;margin:0 0 12px 0;color:var(--text);">'+title+'</h3>'
++'<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;">'
++'<canvas id="'+id+'-canvas" width="220" height="220" style="flex-shrink:0;"></canvas>'
++'<div id="'+id+'-legend" style="flex:1;min-width:200px;"></div></div>';
+return c;
+}
+
+function drawRoughDonut(canvasId,legendId,data,details){
+var cv=document.getElementById(canvasId);
+var lg=document.getElementById(legendId);
+if(!cv||!lg)return;
+var keys=Object.keys(data);
+if(keys.length===0){lg.innerHTML='<p style="color:var(--text2);font-family:Caveat,cursive;font-size:16px;">Sin datos</p>';return;}
+var total=0;keys.forEach(function(k){total+=data[k];});
+if(total===0)return;
+cv.width=220;cv.height=220;
+var ctx=cv.getContext("2d");ctx.clearRect(0,0,220,220);
+var rc;try{rc=rough.canvas(cv);}catch(e){return;}
+var cx=110,cy=110,R=90,r2=50;
+var startA=-Math.PI/2;
+keys.forEach(function(k,i){
+var slice=data[k]/total;
+var endA=startA+slice*2*Math.PI;
+var path="";
+var steps=Math.max(20,Math.round(slice*60));
+for(var s=0;s<=steps;s++){var a=startA+(endA-startA)*(s/steps);var x=cx+R*Math.cos(a),y=cy+R*Math.sin(a);path+=(s===0?"M":"L")+x.toFixed(1)+","+y.toFixed(1);}
+for(var s2=steps;s2>=0;s2--){var a2=startA+(endA-startA)*(s2/steps);var x2=cx+r2*Math.cos(a2),y2=cy+r2*Math.sin(a2);path+="L"+x2.toFixed(1)+","+y2.toFixed(1);}
+path+="Z";
+rc.path(path,{fill:FILLS[i%FILLS.length],fillStyle:"cross-hatch",fillWeight:1.5,hachureGap:5,stroke:COLORS[i%COLORS.length],strokeWidth:2,roughness:1.2});
+startA=endA;
+});
+ctx.font="bold 20px Caveat,cursive";ctx.fillStyle="var(--text)";ctx.textAlign="center";ctx.textBaseline="middle";
+ctx.fillText(fmt(total),cx,cy-6);ctx.font="12px Caveat,cursive";ctx.fillText("Total",cx,cy+12);
+var html="";
+keys.forEach(function(k,i){
+var pct=((data[k]/total)*100).toFixed(1);
+var det=details&&details[k]?details[k]:"";
+html+='<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">'
++'<div style="width:14px;height:14px;border-radius:3px;background:'+COLORS[i%COLORS.length]+';flex-shrink:0;margin-top:2px;transform:rotate(-3deg);"></div>'
++'<div style="font-family:Caveat,cursive;">'
++'<div style="font-size:15px;font-weight:600;color:var(--text);">'+k+' \u2014 '+fmt(data[k])+' ('+pct+'%)</div>'
++(det?'<div style="font-size:13px;color:var(--text2);">'+det+'</div>':'')+'</div></div>';
+});
+lg.innerHTML=html;
+}
+
+function groupByCategory(items,field){
+var g={};items.forEach(function(e){var cat=e.category||e.type||"Otros";g[cat]=(g[cat]||0)+(parseFloat(e[field])||0);});return g;
+}
+
+function injectReportsCharts(){
+var rp=document.getElementById("page-reports");if(!rp)return;
+["v44-rpt-income-chart","v44-rpt-expense-chart","v44-rpt-analysis"].forEach(function(id){var old=document.getElementById(id);if(old)old.remove();});
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var cards=rp.querySelectorAll(".card");var lastCard=cards[cards.length-1];var insertRef=lastCard?lastCard.nextSibling:null;
+var incByCat=groupByCategory(inc,"amount");var incDetails={};
+for(var cat in incByCat){var count=inc.filter(function(e){return(e.category||"Otros")===cat;}).length;incDetails[cat]=count+" registro"+(count>1?"s":"")+" \u00b7 Promedio "+fmt(incByCat[cat]/count);}
+var c1=makeChartContainer("v44-rpt-income-chart","Ingresos por Categor\u00eda");
+if(insertRef){rp.insertBefore(c1,insertRef);}else{rp.appendChild(c1);}
+setTimeout(function(){drawRoughDonut("v44-rpt-income-chart-canvas","v44-rpt-income-chart-legend",incByCat,incDetails);},200);
+var expByCat=groupByCategory(exp,"amount");var expDetails={};
+for(var cat2 in expByCat){var count2=exp.filter(function(e){return(e.category||e.type||"Otros")===cat2;}).length;var ded=exp.filter(function(e){return(e.category||e.type||"Otros")===cat2&&e.deductible;}).length;expDetails[cat2]=count2+" registro"+(count2>1?"s":"")+(ded>0?" \u00b7 "+ded+" deducible"+(ded>1?"s":""):"");}
+var c2=makeChartContainer("v44-rpt-expense-chart","Gastos por Categor\u00eda");
+if(c1.nextSibling){rp.insertBefore(c2,c1.nextSibling);}else{rp.appendChild(c2);}
+setTimeout(function(){drawRoughDonut("v44-rpt-expense-chart-canvas","v44-rpt-expense-chart-legend",expByCat,expDetails);},400);
+var totalInc=0,totalExp=0,totalDed=0;
+inc.forEach(function(e){totalInc+=parseFloat(e.amount)||0;});
+exp.forEach(function(e){totalExp+=parseFloat(e.amount)||0;if(e.deductible)totalDed+=parseFloat(e.amount)||0;});
+var net=totalInc-totalExp;var savingsRate=totalInc>0?((net/totalInc)*100).toFixed(1):0;
+var taxEst=0;var taxable=totalInc-totalDed;
+if(taxable<=18200){taxEst=0;}else if(taxable<=45000){taxEst=(taxable-18200)*0.19;}else if(taxable<=120000){taxEst=5092+(taxable-45000)*0.325;}else if(taxable<=180000){taxEst=29467+(taxable-120000)*0.37;}else{taxEst=51667+(taxable-180000)*0.45;}
+var effectiveRate=totalInc>0?((taxEst/totalInc)*100).toFixed(1):0;
+var aDiv=document.createElement("div");aDiv.id="v44-rpt-analysis";aDiv.className="card";aDiv.style.cssText="margin-top:20px;padding:20px;";
+aDiv.innerHTML='<h3 style="font-family:Caveat,cursive;font-size:22px;margin:0 0 16px 0;color:var(--text);">An\u00e1lisis Financiero</h3>'
++'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">'
++'<div style="padding:14px;background:var(--green-light);border-radius:var(--radius);border-left:4px solid var(--green);">'
++'<div style="font-size:13px;color:var(--text2);font-weight:600;">TASA DE AHORRO</div>'
++'<div style="font-size:28px;font-weight:800;color:var(--green);font-family:Caveat,cursive;">'+savingsRate+'%</div>'
++'<div style="font-size:12px;color:var(--text2);">'+fmt(net)+' ahorrado de '+fmt(totalInc)+'</div></div>'
++'<div style="padding:14px;background:var(--amber-light);border-radius:var(--radius);border-left:4px solid var(--amber);">'
++'<div style="font-size:13px;color:var(--text2);font-weight:600;">TASA EFECTIVA DE IMPUESTO</div>'
++'<div style="font-size:28px;font-weight:800;color:var(--amber);font-family:Caveat,cursive;">'+effectiveRate+'%</div>'
++'<div style="font-size:12px;color:var(--text2);">'+fmt(taxEst)+' estimado sobre '+fmt(totalInc)+'</div></div>'
++'<div style="padding:14px;background:var(--blue-light);border-radius:var(--radius);border-left:4px solid var(--blue);">'
++'<div style="font-size:13px;color:var(--text2);font-weight:600;">DEDUCCIONES RECLAMADAS</div>'
++'<div style="font-size:28px;font-weight:800;color:var(--blue);font-family:Caveat,cursive;">'+fmt(totalDed)+'</div>'
++'<div style="font-size:12px;color:var(--text2);">'+exp.filter(function(e){return e.deductible;}).length+' de '+exp.length+' gastos son deducibles</div></div>'
++'<div style="padding:14px;background:var(--red-light);border-radius:var(--radius);border-left:4px solid var(--red);">'
++'<div style="font-size:13px;color:var(--text2);font-weight:600;">RATIO GASTOS/INGRESOS</div>'
++'<div style="font-size:28px;font-weight:800;color:var(--red);font-family:Caveat,cursive;">'+(totalInc>0?((totalExp/totalInc)*100).toFixed(1):0)+'%</div>'
++'<div style="font-size:12px;color:var(--text2);">'+fmt(totalExp)+' gastado de '+fmt(totalInc)+'</div></div></div>';
+if(c2.nextSibling){rp.insertBefore(aDiv,c2.nextSibling);}else{rp.appendChild(aDiv);}
+}
+
+function translateInsights(){
+var pg=document.getElementById("page-insights");if(!pg)return;
+var IT=[
+{en:"Overdue invoice",es:"Factura vencida"},{en:"at risk",es:"en riesgo"},
+{en:"Consider sending a follow-up email or calling your client",es:"Considera enviar un correo de seguimiento o llamar a tu cliente"},
+{en:"Cash flow Impact: high",es:"Impacto en flujo de caja: alto"},
+{en:"Fuel expenses up",es:"Gastos de combustible subieron"},{en:"this month",es:"este mes"},
+{en:"Ensure you're logging all trips for maximum deductions",es:"Aseg\u00farate de registrar todos los viajes para m\u00e1ximas deducciones"},
+{en:"Consider using a logbook",es:"Considera usar un libro de registro"},
+{en:"You may be able to claim more deductions",es:"Podr\u00edas reclamar m\u00e1s deducciones"},
+{en:"Based on your industry",es:"Seg\u00fan tu industria"},
+{en:"you could also claim",es:"tambi\u00e9n podr\u00edas reclamar"},
+{en:"work boots, safety equipment, union fees and professional memberships",es:"botas de trabajo, equipo de seguridad, cuotas sindicales y membres\u00edas profesionales"},
+{en:"You may be missing",es:"Podr\u00edas estar perdiendo"},{en:"in deductions",es:"en deducciones"},
+{en:"Set aside",es:"Reserva"},{en:"for Q3 BAS",es:"para BAS Q3"},
+{en:"is due",es:"vence el"},{en:"Based on your current figures",es:"Seg\u00fan tus cifras actuales"},
+{en:"you owe",es:"debes"},{en:"in GST",es:"en GST"},
+{en:"We recommend setting this aside now in a separate account",es:"Recomendamos reservar esto ahora en una cuenta separada"},
+{en:"Income dropped",es:"Ingresos bajaron"},{en:"vs 3 months ago",es:"vs hace 3 meses"},
+{en:"Your average monthly income was",es:"Tu ingreso mensual promedio fue"},
+{en:"Consider following up with recurring clients or increasing your marketing spend",es:"Considera hacer seguimiento a clientes recurrentes o aumentar tu gasto en marketing"},
+{en:"Phone bill may be deductible",es:"Factura de tel\u00e9fono puede ser deducible"},
+{en:"You're paying",es:"Est\u00e1s pagando"},{en:"for Telstra",es:"por Telstra"},
+{en:"If you use this phone for work",es:"Si usas este tel\u00e9fono para trabajo"},
+{en:"you can claim the business-use percentage",es:"puedes reclamar el porcentaje de uso comercial"},
+{en:"Common claims",es:"Reclamos comunes"},{en:"for sole traders",es:"para trabajadores aut\u00f3nomos"},
+{en:"Great work",es:"Buen trabajo"},{en:"of expenses logged",es:"de gastos registrados"},
+{en:"You've been consistent with logging expenses",es:"Has sido consistente registrando gastos"},
+{en:"receipts pending upload",es:"recibos pendientes de subir"},{en:"Keep it up",es:"Sigue as\u00ed"},
+{en:"thorough records are essential for ATO compliance",es:"registros completos son esenciales para cumplimiento con ATO"},
+{en:"BAS due in",es:"BAS vence en"},{en:"days",es:"d\u00edas"},
+{en:"Your Q3 BAS lodgment",es:"Tu declaraci\u00f3n BAS Q3"},
+{en:"Your GST summary is ready",es:"Tu resumen de GST est\u00e1 listo"},
+{en:"GST Payable",es:"GST a Pagar"},
+{en:"You can export your BAS data from the Reports page",es:"Puedes exportar tus datos BAS desde la p\u00e1gina de Reportes"}
+];
+pg.querySelectorAll("div,p,span,h2,h3").forEach(function(el){
+if(el.children.length>2)return;var txt=el.innerHTML;var changed=txt;
+IT.forEach(function(t){if(changed.indexOf(t.en)!==-1){changed=changed.split(t.en).join(t.es);}});
+if(changed!==txt)el.innerHTML=changed;
+});
+}
+
+function translateInvest(){var pg=document.getElementById("page-invest");if(!pg)return;translateNode(pg);}
+
+var _pNav44=window.navigate;
+window.navigate=function(p){
+if(typeof _pNav44==="function")_pNav44(p);
+setTimeout(function(){translateAll();if(p==="reports"){injectReportsCharts();}if(p==="insights"){translateInsights();}if(p==="invest"){translateInvest();}},600);
+setTimeout(function(){translateAll();if(p==="reports"){injectReportsCharts();}if(p==="insights"){translateInsights();}if(p==="invest"){translateInvest();}},1800);
+};
+
+setTimeout(function(){translateAll();translateInsights();translateInvest();injectReportsCharts();},3000);
+})();
+</script>
 </html>
