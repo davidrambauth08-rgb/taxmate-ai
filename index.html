@@ -5656,4 +5656,45 @@ fixDashTax();
 };
 })();
 </script>
+<script>
+/* v3.9.1: Persistent dashboard tax fix using MutationObserver */
+(function(){
+function calcCorrectTax(){
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var visa=localStorage.getItem("taxmate-visa")||"citizen";
+var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var deductions=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var taxableIncome=totalInc-deductions;
+if(taxableIncome<0)taxableIncome=0;
+return typeof window._taxByVisa==="function"?window._taxByVisa(taxableIncome,visa):0;
+}
+function fmt(n){return"$"+Math.abs(Math.round(n)).toLocaleString("en-AU");}
+function fixTaxCard(){
+var dash=document.getElementById("page-dashboard");
+if(!dash)return;
+var correct=fmt(calcCorrectTax());
+dash.querySelectorAll(".kpi-card").forEach(function(card){
+var lbl=card.querySelector(".kpi-label");
+if(!lbl)return;
+var lt=lbl.textContent.toLowerCase();
+if(lt.indexOf("impuesto")!==-1||lt.indexOf("tax")!==-1){
+var valEl=card.querySelector(".kpi-value");
+if(valEl&&valEl.textContent!==correct)valEl.textContent=correct;
+}
+});
+}
+/* MutationObserver watches dashboard for ANY changes and corrects tax */
+var obs=new MutationObserver(function(){fixTaxCard();});
+function startObserver(){
+var dash=document.getElementById("page-dashboard");
+if(dash){obs.observe(dash,{childList:true,subtree:true,characterData:true});fixTaxCard();}
+}
+/* Also run on interval for first 15 seconds */
+var c=0;var iv=setInterval(function(){fixTaxCard();startObserver();c++;if(c>=30)clearInterval(iv);},500);
+/* Hook navigate */
+var _pN391=window.navigate;
+window.navigate=function(p){if(typeof _pN391==="function")_pN391(p);if(p==="dashboard"){setTimeout(function(){startObserver();fixTaxCard();},100);setTimeout(fixTaxCard,500);setTimeout(fixTaxCard,1500);setTimeout(fixTaxCard,3000);}};
+})();
+</script>
 </html>
