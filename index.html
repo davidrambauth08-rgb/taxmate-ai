@@ -7298,4 +7298,85 @@ var _wait49=setInterval(function(){
 },200);
 })();
 </script>
+
+<script>
+/* v5.0: Translate Grow Money / Invertir page to Spanish */
+(function(){
+var T={
+"Grow Money":"Invertir",
+"Personalised investment options for Australia":"Opciones de inversión personalizadas para Australia",
+"Important Disclaimer \u2014 Not Financial Advice":"Aviso Importante \u2014 No es Asesoramiento Financiero",
+"Grow Your Money":"Haz Crecer Tu Dinero",
+"Tell us about your situation and we\u2019ll show you suitable ways to grow your money in Australia.":"Cuéntanos tu situación y te mostraremos formas adecuadas de hacer crecer tu dinero en Australia.",
+"Your Investment Profile":"Tu Perfil de Inversión",
+"How much can you invest per month? (AUD)":"¿Cuánto puedes invertir al mes? (AUD)",
+"$890 (suggested)":"$890 (sugerido)",
+"Investment frequency":"Frecuencia de inversión",
+"Weekly":"Semanal","Fortnightly":"Quincenal","Lump sum":"Suma global",
+"Risk tolerance":"Tolerancia al riesgo",
+"Low":"Bajo","Medium":"Medio","High":"Alto",
+"Financial goals":"Objetivos financieros",
+"(select all that apply)":"(selecciona los que apliquen)",
+"Short-term savings":"Ahorro a corto plazo","Long-term wealth":"Riqueza a largo plazo",
+"Retirement":"Jubilación","Buy a house":"Comprar casa",
+"Investment experience":"Experiencia inversora",
+"Beginner":"Principiante","Intermediate":"Intermedio","Advanced":"Avanzado",
+"Show My Investment Options":"Mostrar Mis Opciones de Inversión",
+"AVAILABLE TO INVEST":"DISPONIBLE PARA INVERTIR",
+"After tax & expenses":"Después de impuestos y gastos",
+"YOUR TAX-INVESTMENT CONNECTION":"TU CONEXIÓN IMPUESTOS-INVERSIÓN",
+"NET PROFIT":"GANANCIA NETA","ESTIMATED TAX":"IMPUESTO ESTIMADO",
+"AFTER TAX":"DESPUÉS DE IMPUESTOS","CAN INVEST/YR":"PUEDES INVERTIR/AÑO",
+"If You Invested":"Si Invirtieras",
+"After 1 year":"Después de 1 año","After 3 years":"Después de 3 años",
+"After 10 years":"Después de 10 años",
+"compound growth":"crecimiento compuesto",
+"Estimates based on historical averages. Not a guarantee of returns. Fees not included.":"Estimaciones basadas en promedios históricos. No garantizan rendimientos. Comisiones no incluidas.",
+"What to Know Before You Start":"Lo Que Debes Saber Antes de Empezar",
+"ASIC Regulation":"Regulación ASIC",
+"All investment products in Australia must be regulated by ASIC. Only use products with an AFS Licence. Verify at moneysmart.gov.au before investing.":"Todos los productos de inversión en Australia deben estar regulados por ASIC. Solo usa productos con Licencia AFS. Verifica en moneysmart.gov.au antes de invertir.",
+"Tax on Investments":"Impuestos sobre Inversiones",
+"Capital gains are taxed at your marginal rate. Assets held 12+ months get a 50% CGT discount. Dividends may include franking credits that reduce your tax.":"Las ganancias de capital tributan a tu tasa marginal. Los activos mantenidos 12+ meses obtienen 50% de descuento en CGT. Los dividendos pueden incluir créditos de franqueo que reducen tu impuesto.",
+"Emergency Fund First":"Fondo de Emergencia Primero",
+"Before investing, ensure you have 3\u20136 months of living expenses in a high-interest savings account. As a sole trader, income can be irregular.":"Antes de invertir, asegúrate de tener 3\u20136 meses de gastos en una cuenta de ahorro de alto interés. Como autónomo, los ingresos pueden ser irregulares.",
+"Dollar-Cost Averaging":"Promedio de Costo en Dólares",
+"Investing the same amount regularly (weekly/monthly) reduces the impact of market volatility \u2014 you buy more when prices are low, less when high.":"Invertir la misma cantidad regularmente (semanal/mensual) reduce el impacto de la volatilidad del mercado \u2014 compras más cuando los precios son bajos, menos cuando son altos.",
+"not a licensed financial advisor":"no es un asesor financiero autorizado",
+"educational only":"solo educativo",
+"and does not constitute personal financial advice. Investment returns are not guaranteed and past performance is no indicator of future results. All investments carry risk including possible loss of capital. Always consult a licensed financial advisor (AFS Licence holder) before making investment decisions.":"y no constituye asesoramiento financiero personal. Los rendimientos no están garantizados y el desempeño pasado no indica resultados futuros. Todas las inversiones conllevan riesgo, incluida la posible pérdida de capital. Consulta siempre a un asesor financiero autorizado antes de tomar decisiones de inversión.",
+"Super contributions of up to $27,500/yr are tax-deductible \u2014 reducing your taxable income and boosting retirement savings.":"Las contribuciones de super hasta $27,500/año son deducibles de impuestos \u2014 reduciendo tu ingreso imponible y aumentando tus ahorros de jubilación."
+};
+
+function translateInvestPage(){
+  var lang=localStorage.getItem("taxmate-lang")||"en";
+  if(lang==="en") return;
+  var page=document.getElementById("page-invest");
+  if(!page||page.style.display==="none") return;
+  var walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while(node=walker.nextNode()){
+    var txt=node.textContent.trim();
+    if(!txt) continue;
+    for(var en in T){
+      if(txt.indexOf(en)>=0){
+        node.textContent=node.textContent.replace(en,T[en]);
+      }
+    }
+  }
+}
+
+var _origNav50=window.navigate;
+if(typeof _origNav50==="function"){
+  window.navigate=function(p){
+    _origNav50(p);
+    if(p==="invest"){
+      setTimeout(translateInvestPage,200);
+      setTimeout(translateInvestPage,800);
+    }
+  };
+}
+setTimeout(translateInvestPage,1500);
+setTimeout(translateInvestPage,3000);
+})();
+</script>
 </html>
