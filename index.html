@@ -7122,4 +7122,136 @@ if(code!==cur) location.reload();
 };
 })();
 </script>
+
+<script>
+/* v4.8: Fix invoice View button + add invoice preview modal */
+(function(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+var es=lang==="es";
+
+/* ====== CSS for invoice preview modal ====== */
+var css48=document.createElement("style");
+css48.textContent=`
+.inv-preview-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}
+.inv-preview-modal{background:#fff;border-radius:16px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);position:relative}
+.inv-preview-header{background:linear-gradient(135deg,#0F2557,#1E3A8A);color:#fff;padding:24px 28px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center}
+.inv-preview-header h2{margin:0;font-size:20px;font-weight:800}
+.inv-preview-close{background:rgba(255,255,255,.15);border:none;color:#fff;width:32px;height:32px;border-radius:8px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.inv-preview-close:hover{background:rgba(255,255,255,.3)}
+.inv-preview-body{padding:28px}
+.inv-preview-row{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.inv-preview-row:last-child{border-bottom:none}
+.inv-preview-label{font-size:13px;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.inv-preview-value{font-size:14px;color:#1F2937;font-weight:600;text-align:right;max-width:60%}
+.inv-preview-amount{font-size:28px;font-weight:800;color:#0F2557;text-align:center;padding:20px 0;border-bottom:2px solid #E5E7EB;margin-bottom:8px}
+.inv-preview-status{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.inv-preview-status.sent{background:#DBEAFE;color:#1E40AF}
+.inv-preview-status.paid{background:#D1FAE5;color:#065F46}
+.inv-preview-status.draft{background:#F3F4F6;color:#6B7280}
+.inv-preview-status.overdue{background:#FEE2E2;color:#991B1B}
+.inv-view-btn{color:#1E40AF;cursor:pointer;font-weight:600;font-size:12px;text-decoration:underline;transition:color .2s}
+.inv-view-btn:hover{color:#1E3A8A}
+.inv-preview-footer{padding:16px 28px;border-top:1px solid #E5E7EB;display:flex;gap:10px;justify-content:flex-end}
+.inv-preview-footer button{padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.inv-print-btn{background:#0F2557;color:#fff;border:none}
+.inv-print-btn:hover{background:#1E3A8A}
+.inv-close-btn2{background:#F3F4F6;color:#374151;border:1px solid #E5E7EB}
+.inv-close-btn2:hover{background:#E5E7EB}
+`;
+document.head.appendChild(css48);
+
+/* ====== Override showInvoice to open preview modal ====== */
+window.showInvoice=function(idx){
+  var invoices=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+  var inv;
+  if(typeof idx==="string"){
+    inv=invoices.find(function(i){return i.id===idx;});
+  } else {
+    inv=invoices[idx];
+  }
+  if(!inv){
+    if(typeof showToast==="function") showToast(es?"Factura no encontrada":"Invoice not found","error");
+    return;
+  }
+
+  // Remove existing overlay
+  var old=document.querySelector(".inv-preview-overlay");
+  if(old) old.remove();
+
+  var amt=parseFloat(inv.amount||0);
+  var gstAmt=parseFloat(inv.gst_amount||0);
+  var total=amt;
+  if(inv.gst_option==="exclusive") total=amt+gstAmt;
+
+  var overlay=document.createElement("div");
+  overlay.className="inv-preview-overlay";
+  overlay.onclick=function(e){if(e.target===overlay) overlay.remove();};
+
+  var statusLabel=inv.status||"draft";
+  var statusText={sent:es?"Enviada":"Sent",paid:es?"Pagada":"Paid",draft:es?"Borrador":"Draft",overdue:es?"Vencida":"Overdue"}[statusLabel]||statusLabel;
+
+  var modal=document.createElement("div");
+  modal.className="inv-preview-modal";
+  modal.innerHTML=
+    '<div class="inv-preview-header"><h2>'+(es?"Factura":"Invoice")+(inv.invoice_number?" #"+inv.invoice_number:"")+'</h2><button class="inv-preview-close" onclick="this.closest(\'.inv-preview-overlay\').remove()">&times;</button></div>'
+    +'<div class="inv-preview-body">'
+    +'<div class="inv-preview-amount">$'+total.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</div>'
+    +'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Estado":"Status")+'</span><span class="inv-preview-value"><span class="inv-preview-status '+statusLabel+'">'+statusText+'</span></span></div>'
+    +(inv.client?'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Cliente":"Client")+'</span><span class="inv-preview-value">'+inv.client+'</span></div>':'')
+    +(inv.business?'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Negocio":"Business")+'</span><span class="inv-preview-value">'+inv.business+'</span></div>':'')
+    +'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Fecha":"Date")+'</span><span class="inv-preview-value">'+inv.date+'</span></div>'
+    +(inv.due?'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Vencimiento":"Due Date")+'</span><span class="inv-preview-value">'+inv.due+'</span></div>':'')
+    +(inv.item_description?'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Descripcion":"Description")+'</span><span class="inv-preview-value">'+inv.item_description+'</span></div>':'')
+    +'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Monto":"Amount")+'</span><span class="inv-preview-value">$'+amt.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>'
+    +'<div class="inv-preview-row"><span class="inv-preview-label">GST</span><span class="inv-preview-value">'+(inv.gst_option==="inclusive"?es?"Incluido":"Inclusive":inv.gst_option==="exclusive"?"$"+gstAmt.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})+" ("+( es?"exclusivo":"exclusive")+")":es?"Sin GST":"No GST")+'</span></div>'
+    +(inv.abn?'<div class="inv-preview-row"><span class="inv-preview-label">ABN</span><span class="inv-preview-value">'+inv.abn+'</span></div>':'')
+    +(inv.email?'<div class="inv-preview-row"><span class="inv-preview-label">Email</span><span class="inv-preview-value">'+inv.email+'</span></div>':'')
+    +(inv.memo?'<div class="inv-preview-row"><span class="inv-preview-label">'+(es?"Nota":"Memo")+'</span><span class="inv-preview-value">'+inv.memo+'</span></div>':'')
+    +'</div>'
+    +'<div class="inv-preview-footer"><button class="inv-close-btn2" onclick="this.closest(\'.inv-preview-overlay\').remove()">'+(es?"Cerrar":"Close")+'</button><button class="inv-print-btn" onclick="window.print()">'+(es?"Imprimir":"Print")+'</button></div>';
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+};
+
+/* ====== Fix View buttons in invoice table ====== */
+function fixInvoiceViewButtons(){
+  var table=document.querySelector("#page-invoices table");
+  if(!table) return;
+  var rows=table.querySelectorAll("tbody tr, tr");
+  var invoices=JSON.parse(localStorage.getItem("taxmate-invoices")||"[]");
+  var dataRowIdx=0;
+  rows.forEach(function(row){
+    var cells=row.querySelectorAll("td");
+    if(cells.length===0) return;
+    var actionsCell=cells[cells.length-1];
+    if(!actionsCell) return;
+    var hasViewBtn=actionsCell.querySelector(".inv-view-btn");
+    if(hasViewBtn) return;
+    var childNodes=actionsCell.childNodes;
+    for(var i=0;i<childNodes.length;i++){
+      if(childNodes[i].nodeType===3 && childNodes[i].textContent.trim()==="View"){
+        var span=document.createElement("span");
+        span.className="inv-view-btn";
+        span.textContent=es?"Ver":"View";
+        var idx=dataRowIdx;
+        span.onclick=function(){ showInvoice(idx); };
+        actionsCell.replaceChild(span,childNodes[i]);
+        break;
+      }
+    }
+    dataRowIdx++;
+  });
+}
+
+var _origRenderInvoices=window.renderInvoices;
+window.renderInvoices=function(){
+  if(typeof _origRenderInvoices==="function") _origRenderInvoices();
+  setTimeout(fixInvoiceViewButtons,100);
+};
+
+setTimeout(fixInvoiceViewButtons,2000);
+setTimeout(fixInvoiceViewButtons,4000);
+})();
+</script>
 </html>
