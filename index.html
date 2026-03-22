@@ -5998,4 +5998,232 @@ if(typeof _pSaveE41==="function"){window.saveExpense=function(){_pSaveE41.apply(
 setTimeout(function(){injectIncomeChart();injectExpenseChart();},2000);
 })();
 </script>
+<script>
+/* v4.2: Replace Chart.js donuts with Rough.js hand-drawn style charts */
+(function(){
+var COLORS=["#0F2557","#0D9488","#D97706","#DC2626","#7C3AED","#2563EB","#059669","#DB2777","#EA580C","#4F46E5"];
+var FILLS=["#E8EEF9","#CCFBF1","#FEF3C7","#FEF2F2","#EDE9FE","#DBEAFE","#D1FAE5","#FCE7F3","#FFEDD5","#EEF2FF"];
+var lang=localStorage.getItem("taxmate-lang")||"en";
+var es=lang==="es";
+
+function groupByCategory(items){
+var map={};
+items.forEach(function(e){
+var cat=e.category||"Other";
+map[cat]=(map[cat]||0)+(parseFloat(e.amount)||0);
+});
+return map;
+}
+
+function fmt(n){return"$"+Math.round(n).toLocaleString("en-AU");}
+
+function makeChartContainer(id,title){
+var wrap=document.createElement("div");
+wrap.id=id;
+wrap.style.cssText="background:var(--surface,#fff);border-radius:var(--radius,10px);padding:24px;margin:16px 0;box-shadow:var(--shadow,0 1px 3px rgba(15,37,87,0.08))";
+var h=document.createElement("h3");
+h.style.cssText="margin:0 0 16px;font-family:Playfair Display,serif;font-style:italic;color:var(--text,#0F2557);font-size:1.2rem";
+h.textContent=title;
+wrap.appendChild(h);
+var row=document.createElement("div");
+row.style.cssText="display:flex;align-items:center;gap:24px;flex-wrap:wrap";
+var canvasWrap=document.createElement("div");
+canvasWrap.style.cssText="width:240px;height:240px;flex-shrink:0";
+var canvas=document.createElement("canvas");
+canvas.id=id+"-canvas";
+canvas.width=480;canvas.height=480;
+canvas.style.cssText="width:240px;height:240px";
+canvasWrap.appendChild(canvas);
+row.appendChild(canvasWrap);
+var legend=document.createElement("div");
+legend.id=id+"-legend";
+legend.style.cssText="flex:1;min-width:200px";
+row.appendChild(legend);
+wrap.appendChild(row);
+return wrap;
+}
+
+function drawRoughDonut(canvasId,legendId,data){
+var canvas=document.getElementById(canvasId);
+var legendEl=document.getElementById(legendId);
+if(!canvas||!legendEl)return;
+var ctx=canvas.getContext("2d");
+ctx.clearRect(0,0,canvas.width,canvas.height);
+var labels=Object.keys(data);
+var values=labels.map(function(k){return data[k];});
+var total=values.reduce(function(s,v){return s+v;},0);
+if(total===0){
+legendEl.innerHTML="<p style=\"color:var(--text2,#4A6FA5);font-size:0.9rem;font-family:Caveat,cursive\">"+(es?"Sin datos aun":"No data yet")+"</p>";
+return;
+}
+var cx=240,cy=240,R=180,r=100;
+if(typeof rough!=="undefined"){
+var rc=rough.canvas(canvas);
+var startAngle=-Math.PI/2;
+labels.forEach(function(lbl,i){
+var sweep=(values[i]/total)*Math.PI*2;
+var endAngle=startAngle+sweep;
+var col=COLORS[i%COLORS.length];
+var fill=FILLS[i%FILLS.length];
+/* Draw filled arc segment using path */
+var steps=Math.max(20,Math.round(sweep*30));
+var path="M";
+for(var s=0;s<=steps;s++){
+var a=startAngle+(sweep*s/steps);
+var x=cx+R*Math.cos(a);
+var y=cy+R*Math.sin(a);
+path+=(s===0?"":"")+x.toFixed(1)+","+y.toFixed(1)+" ";
+}
+for(var s2=steps;s2>=0;s2--){
+var a2=startAngle+(sweep*s2/steps);
+var x2=cx+r*Math.cos(a2);
+var y2=cy+r*Math.sin(a2);
+path+="L"+x2.toFixed(1)+","+y2.toFixed(1)+" ";
+}
+path+="Z";
+rc.path(path,{fill:col,fillStyle:"cross-hatch",fillWeight:1.5,hachureGap:5,stroke:col,strokeWidth:2,roughness:1.5});
+startAngle=endAngle;
+});
+/* Draw inner circle for donut hole */
+var isDark=document.documentElement.getAttribute("data-theme")==="dark";
+var holeFill=isDark?"#1A2332":"#FFFFFF";
+rc.circle(cx,cy,r*2-10,{fill:holeFill,fillStyle:"solid",stroke:holeFill,strokeWidth:2,roughness:0.8});
+/* Center total text */
+ctx.save();
+ctx.font="bold 28px Caveat,cursive";
+ctx.fillStyle=isDark?"#E8EEF9":"#0F2557";
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+ctx.fillText(fmt(total),cx,cy-10);
+ctx.font="16px Caveat,cursive";
+ctx.fillStyle=isDark?"#8BA3C7":"#4A6FA5";
+ctx.fillText(es?"Total":"Total",cx,cy+18);
+ctx.restore();
+}else{
+/* Fallback without rough.js */
+var startA=-Math.PI/2;
+labels.forEach(function(lbl,i){
+var sweep2=(values[i]/total)*Math.PI*2;
+ctx.beginPath();
+ctx.arc(cx,cy,R,startA,startA+sweep2);
+ctx.arc(cx,cy,r,startA+sweep2,startA,true);
+ctx.closePath();
+ctx.fillStyle=COLORS[i%COLORS.length];
+ctx.fill();
+startA+=sweep2;
+});
+}
+/* Build legend */
+legendEl.innerHTML="";
+labels.forEach(function(lbl,i){
+var pct=Math.round(values[i]/total*100);
+var row=document.createElement("div");
+row.style.cssText="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border,#E4EAF5)";
+var dot=document.createElement("span");
+dot.style.cssText="width:14px;height:14px;border-radius:3px;flex-shrink:0;background:"+COLORS[i%COLORS.length]+";transform:rotate(-3deg)";
+var info=document.createElement("div");
+info.style.cssText="flex:1;display:flex;justify-content:space-between;align-items:center";
+var name=document.createElement("span");
+name.style.cssText="font-size:1rem;color:var(--text,#0F2557);font-family:Caveat,cursive;font-weight:700";
+name.textContent=lbl;
+var amt=document.createElement("span");
+amt.style.cssText="font-size:1rem;color:var(--text2,#4A6FA5);font-family:Caveat,cursive;font-weight:600";
+amt.textContent=fmt(values[i])+" ("+pct+"%)";
+info.appendChild(name);
+info.appendChild(amt);
+row.appendChild(dot);
+row.appendChild(info);
+legendEl.appendChild(row);
+});
+}
+
+function removeV41Charts(){
+["v41-income-chart","v41-expense-chart","v41-deduction-chart"].forEach(function(id){
+var el=document.getElementById(id);
+if(el)el.remove();
+});
+}
+
+function injectIncomeChart(){
+var page=document.getElementById("page-income");
+if(!page)return;
+removeV41Charts();
+var existing=document.getElementById("v42-income-chart");
+if(existing)existing.remove();
+var totalDiv=null;
+var children=page.children;
+for(var i=0;i<children.length;i++){
+if(children[i].textContent.indexOf("INGRESO TOTAL")!==-1||children[i].textContent.indexOf("TOTAL INCOME")!==-1){
+totalDiv=children[i];break;
+}
+}
+var container=makeChartContainer("v42-income-chart",es?"\ud83d\udcc8 Ingresos por Categoria":"\ud83d\udcc8 Income by Category");
+if(totalDiv&&totalDiv.nextSibling){page.insertBefore(container,totalDiv.nextSibling);}
+else{page.appendChild(container);}
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var data=groupByCategory(inc);
+setTimeout(function(){drawRoughDonut("v42-income-chart-canvas","v42-income-chart-legend",data);},100);
+}
+
+function injectExpenseChart(){
+var page=document.getElementById("page-expenses");
+if(!page)return;
+removeV41Charts();
+var existing=document.getElementById("v42-expense-chart");
+if(existing)existing.remove();
+var existingDed=document.getElementById("v42-deduction-chart");
+if(existingDed)existingDed.remove();
+var totalDiv=null;
+var children=page.children;
+for(var i=0;i<children.length;i++){
+if(children[i].textContent.indexOf("GASTOS TOTALES")!==-1||children[i].textContent.indexOf("TOTAL EXPENSES")!==-1){
+totalDiv=children[i];break;
+}
+}
+var container=makeChartContainer("v42-expense-chart",es?"\ud83d\udcc9 Gastos por Categoria":"\ud83d\udcc9 Expenses by Category");
+if(totalDiv&&totalDiv.nextSibling){page.insertBefore(container,totalDiv.nextSibling);}
+else{page.appendChild(container);}
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var data=groupByCategory(exp);
+setTimeout(function(){drawRoughDonut("v42-expense-chart-canvas","v42-expense-chart-legend",data);},100);
+
+var deductible=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true||String(e.deduction||"").toLowerCase().indexOf("yes")!==-1;});
+if(deductible.length>0){
+var dedContainer=makeChartContainer("v42-deduction-chart",es?"\u2705 Deducciones por Categoria":"\u2705 Deductions by Category");
+page.insertBefore(dedContainer,container.nextSibling);
+var dedData=groupByCategory(deductible);
+setTimeout(function(){drawRoughDonut("v42-deduction-chart-canvas","v42-deduction-chart-legend",dedData);},150);
+}
+}
+
+function refreshAllCharts(){
+if(document.getElementById("v42-income-chart")){
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+drawRoughDonut("v42-income-chart-canvas","v42-income-chart-legend",groupByCategory(inc));
+}
+if(document.getElementById("v42-expense-chart")){
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+drawRoughDonut("v42-expense-chart-canvas","v42-expense-chart-legend",groupByCategory(exp));
+var ded=exp.filter(function(e){return String(e.deduction||"").toLowerCase().indexOf("yes")!==-1;});
+if(document.getElementById("v42-deduction-chart")){
+drawRoughDonut("v42-deduction-chart-canvas","v42-deduction-chart-legend",groupByCategory(ded));
+}
+}
+}
+
+/* Override navigate */
+var _pNav42=window.navigate;
+window.navigate=function(p){
+if(typeof _pNav42==="function")_pNav42(p);
+if(p==="income"){setTimeout(injectIncomeChart,400);setTimeout(injectIncomeChart,1200);}
+if(p==="expenses"){setTimeout(injectExpenseChart,400);setTimeout(injectExpenseChart,1200);}
+};
+/* Override save functions for live update */
+var _pSave42=window.saveIncome;
+if(typeof _pSave42==="function"){window.saveIncome=function(){_pSave42.apply(this,arguments);setTimeout(function(){injectIncomeChart();},600);};}
+var _pSaveE42=window.saveExpense;
+if(typeof _pSaveE42==="function"){window.saveExpense=function(){_pSaveE42.apply(this,arguments);setTimeout(function(){injectExpenseChart();},600);};}
+setTimeout(function(){injectIncomeChart();injectExpenseChart();},2500);
+})();
+</script>
 </html>
