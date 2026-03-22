@@ -6226,4 +6226,159 @@ if(typeof _pSaveE42==="function"){window.saveExpense=function(){_pSaveE42.apply(
 setTimeout(function(){injectIncomeChart();injectExpenseChart();},2500);
 })();
 </script>
+<script>
+/* v4.3: Dashboard & Productivity charts, trim AI, enhanced legends */
+(function(){
+var COLORS=["#0F2557","#0D9488","#D97706","#DC2626","#7C3AED","#2563EB","#059669","#DB2777"];
+var lang=localStorage.getItem("taxmate-lang")||"en";
+var es=lang==="es";
+function fmt(n){return"$"+Math.round(n).toLocaleString("en-AU");}
+
+/* --- TRIM AI SECTION: hide all tips except top 2 + keep chat --- */
+function trimAI(){
+var dash=document.getElementById("page-dashboard");
+if(!dash)return;
+var tips=dash.querySelectorAll("[style*=\"border-left\"]");
+var count=0;
+tips.forEach(function(t){
+if(t.textContent.indexOf("Reserva")!==-1||t.textContent.indexOf("Reserve")!==-1||
+t.textContent.indexOf("ahorro")!==-1||t.textContent.indexOf("Savings")!==-1){
+count++;return;
+}
+if(count>=2){t.style.display="none";}
+count++;
+});
+}
+
+/* --- DASHBOARD CHART: Resumen financiero donut --- */
+function makeContainer(id,title){
+var w=document.createElement("div");w.id=id;
+w.style.cssText="background:var(--surface,#fff);border-radius:var(--radius,10px);padding:24px;margin:16px 0;box-shadow:var(--shadow,0 1px 3px rgba(15,37,87,0.08))";
+var h=document.createElement("h3");
+h.style.cssText="margin:0 0 16px;font-family:Playfair Display,serif;font-style:italic;color:var(--text,#0F2557);font-size:1.2rem";
+h.textContent=title;w.appendChild(h);
+var r=document.createElement("div");r.style.cssText="display:flex;align-items:center;gap:24px;flex-wrap:wrap";
+var cw=document.createElement("div");cw.style.cssText="width:240px;height:240px;flex-shrink:0";
+var cv=document.createElement("canvas");cv.id=id+"-canvas";cv.width=480;cv.height=480;
+cv.style.cssText="width:240px;height:240px";cw.appendChild(cv);r.appendChild(cw);
+var lg=document.createElement("div");lg.id=id+"-legend";lg.style.cssText="flex:1;min-width:200px";
+r.appendChild(lg);w.appendChild(r);return w;
+}
+
+function drawDonut(canvasId,legendId,data,details){
+var cv=document.getElementById(canvasId);
+var lg=document.getElementById(legendId);
+if(!cv||!lg)return;
+var ctx=cv.getContext("2d");ctx.clearRect(0,0,cv.width,cv.height);
+var labels=Object.keys(data);var vals=labels.map(function(k){return data[k];});
+var total=vals.reduce(function(s,v){return s+v;},0);
+if(total===0){lg.innerHTML="<p style=\"color:var(--text2);font-family:Caveat,cursive\">"+(es?"Sin datos":"No data")+"</p>";return;}
+var cx=240,cy=240,R=180,r=100;
+if(typeof rough!=="undefined"){
+var rc=rough.canvas(cv);var sa=-Math.PI/2;
+labels.forEach(function(lbl,i){
+var sw=(vals[i]/total)*Math.PI*2;var ea=sa+sw;var col=COLORS[i%COLORS.length];
+var steps=Math.max(20,Math.round(sw*30));var path="M";
+for(var s=0;s<=steps;s++){var a=sa+(sw*s/steps);path+=((s===0?"":"")+(cx+R*Math.cos(a)).toFixed(1)+","+(cy+R*Math.sin(a)).toFixed(1)+" ");}
+for(var s2=steps;s2>=0;s2--){var a2=sa+(sw*s2/steps);path+="L"+(cx+r*Math.cos(a2)).toFixed(1)+","+(cy+r*Math.sin(a2)).toFixed(1)+" ";}
+path+="Z";rc.path(path,{fill:col,fillStyle:"cross-hatch",fillWeight:1.5,hachureGap:5,stroke:col,strokeWidth:2,roughness:1.5});
+sa=ea;});
+var dk=document.documentElement.getAttribute("data-theme")==="dark";
+var hf=dk?"#1A2332":"#FFFFFF";
+rc.circle(cx,cy,r*2-10,{fill:hf,fillStyle:"solid",stroke:hf,strokeWidth:2,roughness:0.8});
+ctx.save();ctx.font="bold 28px Caveat,cursive";ctx.fillStyle=dk?"#E8EEF9":"#0F2557";
+ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(fmt(total),cx,cy-10);
+ctx.font="16px Caveat,cursive";ctx.fillStyle=dk?"#8BA3C7":"#4A6FA5";
+ctx.fillText("Total",cx,cy+18);ctx.restore();}
+/* Build legend with extra detail */
+lg.innerHTML="";
+labels.forEach(function(lbl,i){
+var pct=Math.round(vals[i]/total*100);
+var row=document.createElement("div");
+row.style.cssText="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border,#E4EAF5)";
+var dot=document.createElement("span");
+dot.style.cssText="width:14px;height:14px;border-radius:3px;flex-shrink:0;margin-top:3px;background:"+COLORS[i%COLORS.length]+";transform:rotate(-3deg)";
+var info=document.createElement("div");info.style.cssText="flex:1";
+var top=document.createElement("div");top.style.cssText="display:flex;justify-content:space-between;align-items:center";
+var name=document.createElement("span");name.style.cssText="font-size:1rem;color:var(--text,#0F2557);font-family:Caveat,cursive;font-weight:700";
+name.textContent=lbl;
+var amt=document.createElement("span");amt.style.cssText="font-size:1rem;color:var(--text2,#4A6FA5);font-family:Caveat,cursive;font-weight:600";
+amt.textContent=fmt(vals[i])+" ("+pct+"%)";
+top.appendChild(name);top.appendChild(amt);info.appendChild(top);
+/* Extra detail line */
+if(details&&details[lbl]){
+var sub=document.createElement("div");sub.style.cssText="font-size:0.8rem;color:var(--text2,#4A6FA5);font-family:Caveat,cursive;margin-top:2px;opacity:0.8";
+sub.textContent=details[lbl];info.appendChild(sub);}
+row.appendChild(dot);row.appendChild(info);lg.appendChild(row);
+});
+}
+
+function buildDetails(items,type){
+var map={};var counts={};
+items.forEach(function(e){var c=e.category||"Other";
+if(!map[c])map[c]=[];map[c].push(parseFloat(e.amount)||0);
+counts[c]=(counts[c]||0)+1;});
+var det={};
+for(var c in map){var arr=map[c];var avg=Math.round(arr.reduce(function(s,v){return s+v;},0)/arr.length);
+det[c]=counts[c]+" "+(es?"registros":"entries")+" · "+(es?"Promedio":"Avg")+" "+fmt(avg);
+}return det;}
+
+function injectDashboardChart(){
+var dash=document.getElementById("page-dashboard");
+if(!dash||document.getElementById("v43-dash-chart"))return;
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var totalExp=exp.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var ded=exp.filter(function(e){return String(e.deduction||"").toLowerCase().indexOf("yes")!==-1;});
+var totalDed=ded.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var data={};
+data[es?"Ingresos":"Income"]=totalInc;
+data[es?"Gastos":"Expenses"]=totalExp;
+if(totalDed>0)data[es?"Deducciones":"Deductions"]=totalDed;
+var container=makeContainer("v43-dash-chart",es?"\ud83d\udcca Resumen Financiero":"\ud83d\udcca Financial Overview");
+/* Insert after KPI cards row */
+var kpis=dash.querySelectorAll(".kpi-card");
+var kpiParent=kpis.length?kpis[kpis.length-1].parentElement:null;
+if(kpiParent&&kpiParent.nextSibling){dash.insertBefore(container,kpiParent.nextSibling);}
+else{var first=dash.firstChild;if(first&&first.nextSibling&&first.nextSibling.nextSibling){dash.insertBefore(container,first.nextSibling.nextSibling);}else{dash.appendChild(container);}}
+var det={};
+det[es?"Ingresos":"Income"]=inc.length+" "+(es?"registros":"entries");
+det[es?"Gastos":"Expenses"]=exp.length+" "+(es?"registros":"entries");
+if(totalDed>0)det[es?"Deducciones":"Deductions"]=ded.length+" "+(es?"items deducibles":"deductible items");
+setTimeout(function(){drawDonut("v43-dash-chart-canvas","v43-dash-chart-legend",data,det);},200);
+}
+
+/* --- PRODUCTIVITY CHART: Monthly revenue bar-like with rough --- */
+function injectProductivityChart(){
+var page=document.getElementById("page-productivity");
+if(!page||document.getElementById("v43-prod-chart"))return;
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var months={};
+inc.forEach(function(e){var d=e.date||"";var m=d.substring(0,7);
+if(m)months[m]=(months[m]||0)+(parseFloat(e.amount)||0);});
+var container=makeContainer("v43-prod-chart",es?"\ud83d\udcc8 Ingresos por Mes":"\ud83d\udcc8 Revenue by Month");
+/* Insert at start of page content */
+var h2=page.querySelector("h2");
+if(h2&&h2.nextSibling){page.insertBefore(container,h2.nextSibling);}
+else{page.appendChild(container);}
+var det={};for(var m in months){det[m]=fmt(months[m]);}
+setTimeout(function(){drawDonut("v43-prod-chart-canvas","v43-prod-chart-legend",months,det);},200);
+}
+
+/* --- ENHANCE v4.2 legends with detail --- */
+var _origInject42Inc=window._v42InjectIncome;
+/* Override v4.2 drawRoughDonut legend to include details */
+
+/* --- NAV OVERRIDES --- */
+var _pNav43=window.navigate;
+window.navigate=function(p){
+if(typeof _pNav43==="function")_pNav43(p);
+if(p==="dashboard"){setTimeout(function(){injectDashboardChart();trimAI();},500);setTimeout(function(){injectDashboardChart();trimAI();},1500);}
+if(p==="productivity"){setTimeout(injectProductivityChart,500);setTimeout(injectProductivityChart,1500);}
+};
+/* Init on load */
+setTimeout(function(){injectDashboardChart();trimAI();injectProductivityChart();},3000);
+})();
+</script>
 </html>
