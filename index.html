@@ -5842,4 +5842,160 @@ setTimeout(translatePages,2000);
 };
 })();
 </script>
+<script>
+/* v4.1: Category donut charts for Income & Expenses pages */
+(function(){
+var COLORS=["#0F2557","#0D9488","#D97706","#DC2626","#7C3AED","#2563EB","#059669","#DB2777","#EA580C","#4F46E5"];
+var lang=localStorage.getItem("taxmate-lang")||"en";
+var es=lang==="es";
+var _charts={};
+
+function groupByCategory(items){
+var map={};
+items.forEach(function(e){
+var cat=e.category||"Other";
+map[cat]=(map[cat]||0)+(parseFloat(e.amount)||0);
+});
+return map;
+}
+
+function fmt(n){return"$"+Math.round(n).toLocaleString("en-AU");}
+
+function makeChartContainer(id,title){
+var wrap=document.createElement("div");
+wrap.id=id;
+wrap.style.cssText="background:var(--surface,#fff);border-radius:var(--radius,10px);padding:24px;margin:16px 0;box-shadow:var(--shadow,0 1px 3px rgba(15,37,87,0.08))";
+var h=document.createElement("h3");
+h.style.cssText="margin:0 0 16px;font-family:Playfair Display,serif;font-style:italic;color:var(--text,#0F2557);font-size:1.2rem";
+h.textContent=title;
+wrap.appendChild(h);
+var row=document.createElement("div");
+row.style.cssText="display:flex;align-items:center;gap:24px;flex-wrap:wrap";
+var canvasWrap=document.createElement("div");
+canvasWrap.style.cssText="width:220px;height:220px;flex-shrink:0";
+var canvas=document.createElement("canvas");
+canvas.id=id+"-canvas";
+canvas.width=220;canvas.height=220;
+canvasWrap.appendChild(canvas);
+row.appendChild(canvasWrap);
+var legend=document.createElement("div");
+legend.id=id+"-legend";
+legend.style.cssText="flex:1;min-width:200px";
+row.appendChild(legend);
+wrap.appendChild(row);
+return wrap;
+}
+
+function renderDonut(canvasId,legendId,data,chartKey){
+if(_charts[chartKey]){try{_charts[chartKey].destroy();}catch(e){}}
+var canvas=document.getElementById(canvasId);
+var legendEl=document.getElementById(legendId);
+if(!canvas||!legendEl)return;
+var labels=Object.keys(data);
+var values=labels.map(function(k){return data[k];});
+var total=values.reduce(function(s,v){return s+v;},0);
+if(total===0){
+legendEl.innerHTML="<p style=\"color:var(--text2,#4A6FA5);font-size:0.9rem\">"+(es?"Sin datos a\u00fan":"No data yet")+"</p>";
+return;
+}
+_charts[chartKey]=new Chart(canvas,{
+type:"doughnut",
+data:{labels:labels,datasets:[{data:values,backgroundColor:COLORS.slice(0,labels.length),borderWidth:2,borderColor:"var(--surface,#fff)",hoverOffset:6}]},
+options:{responsive:true,maintainAspectRatio:true,cutout:"65%",plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.label+": "+fmt(ctx.raw)+" ("+Math.round(ctx.raw/total*100)+"%)";}}}},animation:{animateRotate:true,duration:800}}
+});
+legendEl.innerHTML="";
+labels.forEach(function(lbl,i){
+var pct=Math.round(values[i]/total*100);
+var row=document.createElement("div");
+row.style.cssText="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border,#E4EAF5)";
+var dot=document.createElement("span");
+dot.style.cssText="width:12px;height:12px;border-radius:50%;flex-shrink:0;background:"+COLORS[i%COLORS.length];
+var info=document.createElement("div");
+info.style.cssText="flex:1;display:flex;justify-content:space-between;align-items:center";
+var name=document.createElement("span");
+name.style.cssText="font-size:0.9rem;color:var(--text,#0F2557);font-weight:500";
+name.textContent=lbl;
+var amt=document.createElement("span");
+amt.style.cssText="font-size:0.9rem;color:var(--text2,#4A6FA5);font-weight:600";
+amt.textContent=fmt(values[i])+" ("+pct+"%)";
+info.appendChild(name);
+info.appendChild(amt);
+row.appendChild(dot);
+row.appendChild(info);
+legendEl.appendChild(row);
+});
+}
+
+function injectIncomeChart(){
+var page=document.getElementById("page-income");
+if(!page||document.getElementById("v41-income-chart"))return;
+var totalDiv=null;
+var children=page.children;
+for(var i=0;i<children.length;i++){
+if(children[i].textContent.indexOf("INGRESO TOTAL")!==-1||children[i].textContent.indexOf("TOTAL INCOME")!==-1){
+totalDiv=children[i];break;
+}
+}
+var container=makeChartContainer("v41-income-chart",es?"\ud83d\udcc8 Ingresos por Categor\u00eda":"\ud83d\udcc8 Income by Category");
+if(totalDiv&&totalDiv.nextSibling){page.insertBefore(container,totalDiv.nextSibling);}
+else{page.appendChild(container);}
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var data=groupByCategory(inc);
+renderDonut("v41-income-chart-canvas","v41-income-chart-legend",data,"income");
+}
+
+function injectExpenseChart(){
+var page=document.getElementById("page-expenses");
+if(!page||document.getElementById("v41-expense-chart"))return;
+var totalDiv=null;
+var children=page.children;
+for(var i=0;i<children.length;i++){
+if(children[i].textContent.indexOf("GASTOS TOTALES")!==-1||children[i].textContent.indexOf("TOTAL EXPENSES")!==-1){
+totalDiv=children[i];break;
+}
+}
+var container=makeChartContainer("v41-expense-chart",es?"\ud83d\udcc9 Gastos por Categor\u00eda":"\ud83d\udcc9 Expenses by Category");
+if(totalDiv&&totalDiv.nextSibling){page.insertBefore(container,totalDiv.nextSibling);}
+else{page.appendChild(container);}
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var data=groupByCategory(exp);
+renderDonut("v41-expense-chart-canvas","v41-expense-chart-legend",data,"expenses");
+
+var deductible=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true||String(e.deduction).toLowerCase().indexOf("yes")!==-1;});
+if(deductible.length>0){
+var dedContainer=makeChartContainer("v41-deduction-chart",es?"\u2705 Deducciones por Categor\u00eda":"\u2705 Deductions by Category");
+page.insertBefore(dedContainer,container.nextSibling);
+var dedData=groupByCategory(deductible);
+renderDonut("v41-deduction-chart-canvas","v41-deduction-chart-legend",dedData,"deductions");
+}
+}
+
+function refreshCharts(){
+if(document.getElementById("v41-income-chart")){
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+renderDonut("v41-income-chart-canvas","v41-income-chart-legend",groupByCategory(inc),"income");
+}
+if(document.getElementById("v41-expense-chart")){
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+renderDonut("v41-expense-chart-canvas","v41-expense-chart-legend",groupByCategory(exp),"expenses");
+var ded=exp.filter(function(e){return String(e.deduction||"").toLowerCase().indexOf("yes")!==-1;});
+if(document.getElementById("v41-deduction-chart")){
+renderDonut("v41-deduction-chart-canvas","v41-deduction-chart-legend",groupByCategory(ded),"deductions");
+}
+}
+}
+
+var _pNav41=window.navigate;
+window.navigate=function(p){
+if(typeof _pNav41==="function")_pNav41(p);
+if(p==="income"){setTimeout(injectIncomeChart,300);setTimeout(injectIncomeChart,1000);}
+if(p==="expenses"){setTimeout(injectExpenseChart,300);setTimeout(injectExpenseChart,1000);}
+};
+var _pSave41=window.saveIncome;
+if(typeof _pSave41==="function"){window.saveIncome=function(){_pSave41.apply(this,arguments);setTimeout(refreshCharts,500);};}
+var _pSaveE41=window.saveExpense;
+if(typeof _pSaveE41==="function"){window.saveExpense=function(){_pSaveE41.apply(this,arguments);setTimeout(refreshCharts,500);};}
+setTimeout(function(){injectIncomeChart();injectExpenseChart();},2000);
+})();
+</script>
 </html>
