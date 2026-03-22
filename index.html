@@ -6999,9 +6999,9 @@ function addLogoutButton(){
   var btn=document.createElement("div");
   btn.id="v46-logout";
   btn.className="sidebar-logout";
-  btn.innerHTML='<span style="font-size:16px">ðª</span> '+(es?"Cerrar SesiÃ³n":"Log Out");
+  btn.innerHTML='<span style="font-size:16px">ðª</span> '+(es?"Cerrar Sesión":"Log Out");
   btn.onclick=function(){
-    if(confirm(es?"Â¿Seguro que quieres cerrar sesiÃ³n?":"Are you sure you want to log out?")){
+    if(confirm(es?"¿Seguro que quieres cerrar sesión?":"Are you sure you want to log out?")){
       localStorage.removeItem("taxmate-user");
       localStorage.removeItem("taxmate-plan");
       location.reload();
@@ -7050,7 +7050,7 @@ function limitFreeDashboard(){
   banner.className="free-upgrade-banner";
   banner.innerHTML='<h3>ð '+(es?"Desbloquea TaxMate PRO":"Unlock TaxMate PRO")+'</h3>'
     +'<p>'+(es
-      ?"Registra ingresos, gastos, obtÃ©n reportes, estimador de impuestos, IA insights, herramientas de inversiÃ³n y mucho mÃ¡s."
+      ?"Registra ingresos, gastos, obtén reportes, estimador de impuestos, IA insights, herramientas de inversión y mucho más."
       :"Track income, expenses, get reports, tax estimator, AI insights, investment tools and much more.")+'</p>'
     +'<button onclick="showUpgradeModal()">'+(es?"Ver Planes PRO â":"See PRO Plans â")+'</button>';
 
