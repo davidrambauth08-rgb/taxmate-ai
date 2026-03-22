@@ -6956,4 +6956,157 @@ setTimeout(function(){ injectNavBadges(); interceptExportPDF(); },4000);
 })();
 
 </script>
+
+<script>
+/* v4.6: Strict Free vs Pro â Free=Invoices+Dashboard(basic)+Settings, Pro=everything. Logout button. */
+(function(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+var es=lang==="es";
+var plan=localStorage.getItem("taxmate-plan")||"free";
+
+/* ====== CSS ====== */
+var css46=document.createElement("style");
+css46.textContent=`
+/* Logout button */
+.sidebar-logout{display:flex;align-items:center;gap:8px;margin:8px 12px;padding:10px 14px;border-radius:10px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.15);color:#DC2626;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.sidebar-logout:hover{background:rgba(220,38,38,.15);border-color:rgba(220,38,38,.3);transform:translateY(-1px)}
+/* Free restricted nav items */
+.nav-item.v46-locked{opacity:.45;pointer-events:none;position:relative}
+.nav-item.v46-locked .pro-lock-tag{display:inline-block;font-size:8px;font-weight:700;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;padding:1px 5px;border-radius:4px;margin-left:auto;letter-spacing:.5px}
+/* Free banner on dashboard */
+.free-upgrade-banner{margin:16px 0;padding:20px 24px;border-radius:16px;background:linear-gradient(135deg,#0F2557 0%,#1E3A8A 50%,#1E40AF 100%);border:1px solid rgba(245,158,11,.3);color:#fff;position:relative;overflow:hidden}
+.free-upgrade-banner::before{content:"";position:absolute;top:-50%;right:-20%;width:200px;height:200px;background:radial-gradient(circle,rgba(245,158,11,.15) 0%,transparent 70%);border-radius:50%}
+.free-upgrade-banner h3{font-size:18px;font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.free-upgrade-banner p{font-size:13px;opacity:.8;margin-bottom:14px;line-height:1.5}
+.free-upgrade-banner button{padding:10px 24px;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all .2s;position:relative;z-index:1}
+.free-upgrade-banner button:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(217,119,6,.4)}
+/* Hide cards on free dashboard after first 2 */
+.v46-dash-hidden{display:none!important}
+`;
+document.head.appendChild(css46);
+
+/* ====== PAGES CONFIG ====== */
+/* Free users ONLY get: dashboard(limited), invoices, plans, settings, home */
+var FREE_PAGES=["dashboard","invoices","plans","settings","home"];
+/* All other pages are PRO-only */
+var PRO_ONLY_PAGES=["income","expenses","tax","reports","insights","productivity","resources","invest"];
+
+/* ====== LOGOUT BUTTON ====== */
+function addLogoutButton(){
+  if(document.getElementById("v46-logout")) return;
+  var footer=document.querySelector(".sidebar-footer");
+  if(!footer) return;
+  var btn=document.createElement("div");
+  btn.id="v46-logout";
+  btn.className="sidebar-logout";
+  btn.innerHTML='<span style="font-size:16px">ðª</span> '+(es?"Cerrar SesiÃ³n":"Log Out");
+  btn.onclick=function(){
+    if(confirm(es?"Â¿Seguro que quieres cerrar sesiÃ³n?":"Are you sure you want to log out?")){
+      localStorage.removeItem("taxmate-user");
+      localStorage.removeItem("taxmate-plan");
+      location.reload();
+    }
+  };
+  /* Insert before footer but after upgrade card if it exists */
+  var upgradeCard=document.getElementById("v45-upgrade-card");
+  if(upgradeCard) upgradeCard.after(btn);
+  else footer.before(btn);
+}
+
+/* ====== LOCK NAV ITEMS FOR FREE ====== */
+function lockNavForFree(){
+  if(plan==="pro") return;
+  var navItems=document.querySelectorAll(".nav-item");
+  navItems.forEach(function(item){
+    var onclick=item.getAttribute("onclick")||"";
+    var isProOnly=false;
+    PRO_ONLY_PAGES.forEach(function(p){
+      if(onclick.indexOf("'"+p+"'")>-1) isProOnly=true;
+    });
+    if(isProOnly && !item.classList.contains("v46-locked")){
+      item.classList.add("v46-locked");
+      item.removeAttribute("onclick");
+      item.style.cursor="default";
+      /* Add PRO tag if not already there from v4.5 */
+      if(!item.querySelector(".pro-lock-tag") && !item.querySelector(".pro-badge")){
+        var tag=document.createElement("span");
+        tag.className="pro-lock-tag";
+        tag.textContent="PRO";
+        item.appendChild(tag);
+      }
+    }
+  });
+}
+
+/* ====== FREE DASHBOARD: limit content + upgrade banner ====== */
+function limitFreeDashboard(){
+  if(plan==="pro") return;
+  var dash=document.getElementById("page-dashboard");
+  if(!dash) return;
+  if(dash.querySelector(".free-upgrade-banner")) return;
+
+  /* Add upgrade banner after the summary cards */
+  var banner=document.createElement("div");
+  banner.className="free-upgrade-banner";
+  banner.innerHTML='<h3>ð '+(es?"Desbloquea TaxMate PRO":"Unlock TaxMate PRO")+'</h3>'
+    +'<p>'+(es
+      ?"Registra ingresos, gastos, obtÃ©n reportes, estimador de impuestos, IA insights, herramientas de inversiÃ³n y mucho mÃ¡s."
+      :"Track income, expenses, get reports, tax estimator, AI insights, investment tools and much more.")+'</p>'
+    +'<button onclick="showUpgradeModal()">'+(es?"Ver Planes PRO â":"See PRO Plans â")+'</button>';
+
+  /* Insert after the Resumen Financiero section or after first couple of elements */
+  var financialSummary=dash.querySelector('[style*="border-radius"]');
+  if(financialSummary && financialSummary.parentElement===dash){
+    financialSummary.after(banner);
+  } else {
+    /* Fallback: insert after 3rd child */
+    var children=Array.from(dash.children);
+    if(children.length>2) children[2].after(banner);
+    else dash.appendChild(banner);
+  }
+
+  /* Hide AI insight cards and other advanced sections on free dashboard */
+  var allCards=dash.querySelectorAll('.card, [class*="insight"], [class*="alert"]');
+  var count=0;
+  allCards.forEach(function(card){
+    /* Keep the first few summary cards, hide the rest */
+    if(count>3){
+      card.classList.add("v46-dash-hidden");
+    }
+    count++;
+  });
+}
+
+/* ====== NAV OVERRIDE: block free users from pro pages ====== */
+var _pNav46=window.navigate;
+window.navigate=function(p){
+  /* Check if free user trying to access pro page */
+  if(plan!=="pro"){
+    var blocked=false;
+    PRO_ONLY_PAGES.forEach(function(pp){
+      if(p===pp) blocked=true;
+    });
+    if(blocked){
+      if(typeof showUpgradeModal==="function") showUpgradeModal();
+      return;
+    }
+  }
+  /* Pass through to previous navigate (v4.5 or base) */
+  if(typeof _pNav46==="function") _pNav46(p);
+};
+
+/* ====== INIT ====== */
+function initV46(){
+  addLogoutButton();
+  lockNavForFree();
+  limitFreeDashboard();
+}
+setTimeout(initV46,2500);
+/* Re-run after v4.5 finishes its init */
+setTimeout(function(){
+  lockNavForFree();
+  limitFreeDashboard();
+},5000);
+})();
+</script>
 </html>
