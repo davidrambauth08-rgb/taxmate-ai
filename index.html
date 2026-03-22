@@ -5697,4 +5697,90 @@ var _pN391=window.navigate;
 window.navigate=function(p){if(typeof _pN391==="function")_pN391(p);if(p==="dashboard"){setTimeout(function(){startObserver();fixTaxCard();},100);setTimeout(fixTaxCard,500);setTimeout(fixTaxCard,1500);setTimeout(fixTaxCard,3000);}};
 })();
 </script>
+<script>
+/* v4.0: Translate Productivity & Resources pages to Spanish */
+(function(){
+var translations={
+"Productivity":"Productividad",
+"Tus ingresos vs. el mercado":"Tus ingresos vs. el mercado",
+"Projected Annual Income":"Ingreso Anual Proyectado",
+"PROJECTED ANNUAL INCOME":"INGRESO ANUAL PROYECTADO",
+"Monthly avg":"Promedio mensual",
+"MONTHLY AVG":"PROMEDIO MENSUAL",
+"Weekly avg":"Promedio semanal",
+"WEEKLY AVG":"PROMEDIO SEMANAL",
+"Daily rate":"Tarifa diaria",
+"DAILY RATE":"TARIFA DIARIA",
+"Top 10%":"Top 10%",
+"Bottom 25%":"Percentil 25%",
+"How to Earn More":"C\u00f3mo Ganar M\u00e1s",
+"Raise Your Rates":"Sube tus Tarifas",
+"Reduce Slow Months":"Reduce Meses Flojos",
+"Google Reviews":"Rese\u00f1as de Google",
+"Monthly Revenue Trend":"Tendencia Mensual de Ingresos",
+"Market Comparison":"Comparaci\u00f3n de Mercado",
+"You (Projected)":"T\u00fa (Proyectado)",
+"Resources":"Recursos",
+"Helpful tools and links for Australian businesses":"Herramientas y enlaces \u00fatiles para negocios en Australia",
+"Recommended Accountants":"Contadores Recomendados",
+"Specialised in tradies, freelancers & small business \u00b7 Australia":"Especialistas en oficios, freelancers y peque\u00f1os negocios \u00b7 Australia",
+"Sole Trader":"Trabajador Aut\u00f3nomo",
+"Tradie":"Oficio",
+"Contact \u2192":"Contactar \u2192",
+"Visa Holders":"Titulares de Visa",
+"Individual":"Individual",
+"Small Business":"Peque\u00f1o Negocio",
+"Walk-in":"Presencial",
+"DIY Tax Guide for Tradies":"Gu\u00eda de Impuestos DIY para Oficios",
+"File your own return \u00b7 ATO myTax":"Presenta tu declaraci\u00f3n \u00b7 ATO myTax",
+"Log in to myGov \u2192 ATO":"Inicia sesi\u00f3n en myGov \u2192 ATO",
+"Link your ATO account at my.gov.au. Pre-filled data auto-populates most fields.":"Vincula tu cuenta ATO en my.gov.au. Los datos precargados completan la mayor\u00eda de campos.",
+"Declare All Income":"Declara Todos los Ingresos",
+"Include all invoices, cash jobs, and any other payments. Don't miss foreign income.":"Incluye todas las facturas, trabajos en efectivo y otros pagos. No olvides ingresos del exterior.",
+"Claim All Deductions":"Reclama Todas las Deducciones",
+"Lodge by 31 October":"Presenta antes del 31 de octubre",
+"Where You Can Save & Earn More":"D\u00f3nde Puedes Ahorrar y Ganar M\u00e1s",
+"Personalised to your current data":"Personalizado seg\u00fan tus datos actuales",
+"Save":"Ahorra",
+"in tax deductions":"en deducciones fiscales",
+"Claim vehicle better":"Reclama mejor el veh\u00edculo",
+"Phone & internet deduction missed":"Deducci\u00f3n de tel\u00e9fono e internet faltante",
+"Superannuation contributions":"Contribuciones de jubilaci\u00f3n",
+"Based on":"Basado en",
+"over":"en",
+"months":"meses"
+};
+function translatePage(pageId){
+var page=document.getElementById(pageId);
+if(!page)return;
+var walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT,null,false);
+var node;
+while(node=walker.nextNode()){
+var txt=node.textContent.trim();
+if(txt.length<2)continue;
+for(var en in translations){
+if(txt===en||txt.indexOf(en)!==-1){
+node.textContent=node.textContent.replace(en,translations[en]);
+}
+}
+}
+}
+function runTranslations(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+if(lang!=="es")return;
+translatePage("page-productivity");
+translatePage("page-resources");
+}
+setInterval(runTranslations,1000);
+var _pNav40=window.navigate;
+window.navigate=function(p){
+if(typeof _pNav40==="function")_pNav40(p);
+if(p==="productivity"||p==="resources"){
+setTimeout(runTranslations,200);
+setTimeout(runTranslations,800);
+setTimeout(runTranslations,2000);
+}
+};
+})();
+</script>
 </html>
