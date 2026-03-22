@@ -7109,4 +7109,17 @@ setTimeout(function(){
 },5000);
 })();
 </script>
+
+<script>
+/* v4.7: Fix language switch — reload page on language change so all content re-renders */
+(function(){
+var _origSetLang=window.setLang;
+if(typeof _origSetLang!=="function") return;
+window.setLang=function(code){
+var cur=localStorage.getItem("taxmate-lang")||"en";
+_origSetLang(code);
+if(code!==cur) location.reload();
+};
+})();
+</script>
 </html>
