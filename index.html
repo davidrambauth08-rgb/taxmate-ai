@@ -5783,4 +5783,63 @@ setTimeout(runTranslations,2000);
 };
 })();
 </script>
+<script>
+/* v4.0.1: Complete Spanish translations for Productivity & Resources */
+(function(){
+var t2={
+"Productivity":"Productividad",
+"Resources":"Recursos",
+"Helpful tools and links for Australian businesses":"Herramientas y enlaces \u00fatiles para negocios en Australia",
+"Top 10%":"Top 10%",
+"Business":"Negocios",
+"Sydney tradies charge $80\u2013$180/hr. A $15/hr increase adds ~$18,000/yr at current volume.":"Los tradies de Sydney cobran $80\u2013$180/hr. Un aumento de $15/hr agrega ~$18,000/a\u00f1o al volumen actual.",
+"Nov\u2013Dec showed 40% revenue dip. Promote pre-summer inspections & maintenance packages.":"Nov\u2013Dic mostr\u00f3 una ca\u00edda del 40% en ingresos. Promueve inspecciones y paquetes de mantenimiento pre-verano.",
+"Oficios with 50+ reviews earn 23% more. Ask every satisfied client for a review this week.":"Oficios con 50+ rese\u00f1as ganan 23% m\u00e1s. Pide a cada cliente satisfecho una rese\u00f1a esta semana.",
+"Specialists in sole traders, ABN holders and tradies. Fixed-fee BAS lodgement from $150.":"Especialistas en trabajadores aut\u00f3nomos, titulares de ABN y oficios. Presentaci\u00f3n de BAS a tarifa fija desde $150.",
+"Expert in visa-specific tax obligations. Working Holiday, Student, 482 and PR clients.":"Expertos en obligaciones fiscales por tipo de visa. Working Holiday, Estudiantes, 482 y PR.",
+"Trusted national chain with dedicated small business & self-employed specialists. 400+ offices.":"Cadena nacional con especialistas en peque\u00f1os negocios y aut\u00f3nomos. 400+ oficinas.",
+"From $150/quarter":"Desde $150/trimestre",
+"From $200/year":"Desde $200/a\u00f1o",
+"From $99/return":"Desde $99/declaraci\u00f3n",
+"Tools, vehicle, phone, home office, equipment, work clothing, insurance, training.":"Herramientas, veh\u00edculo, tel\u00e9fono, oficina en casa, equipos, ropa de trabajo, seguros, capacitaci\u00f3n.",
+"DIY deadline is 31 Oct. If you use a tax agent, you may get until May the following year.":"El plazo DIY es el 31 de octubre. Si usas un agente fiscal, puedes tener hasta mayo del a\u00f1o siguiente.",
+"You have uncategorised expenses from Aug\u2013Oct. Reclassify them as business deductions.":"Tienes gastos sin categorizar de ago\u2013oct. Reclasif\u00edcalos como deducciones de negocio.",
+"You\u2019re logging fuel but not mileage. Switch to logbook method to claim full vehicle costs.":"Est\u00e1s registrando combustible pero no kilometraje. Cambia al m\u00e9todo de bit\u00e1cora para reclamar todos los costos del veh\u00edculo.",
+"No phone expenses recorded. Business-use portion (typically 50\u201380%) is deductible.":"Sin gastos de tel\u00e9fono registrados. La porci\u00f3n de uso comercial (generalmente 50\u201380%) es deducible.",
+"As a sole trader you can contribute to super and claim as a tax deduction \u2014 up to $27,500/yr.":"Como trabajador aut\u00f3nomo puedes contribuir a la jubilaci\u00f3n y reclamar como deducci\u00f3n fiscal \u2014 hasta $27,500/a\u00f1o.",
+"Sydney \u00b7 Melbourne \u00b7 Online":"Sydney \u00b7 Melbourne \u00b7 En l\u00ednea",
+"Nationwide \u00b7 Online":"Nacional \u00b7 En l\u00ednea",
+"Australia-wide \u00b7 Presencial":"En toda Australia \u00b7 Presencial"
+};
+function translatePages(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+if(lang!=="es")return;
+["page-productivity","page-resources"].forEach(function(pid){
+var page=document.getElementById(pid);
+if(!page)return;
+var walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT,null,false);
+var node;
+while(node=walker.nextNode()){
+var txt=node.textContent.trim();
+if(txt.length<2)continue;
+for(var en in t2){
+if(node.textContent.indexOf(en)!==-1){
+node.textContent=node.textContent.replace(en,t2[en]);
+}
+}
+}
+});
+}
+setInterval(translatePages,1200);
+var _pN401=window.navigate;
+window.navigate=function(p){
+if(typeof _pN401==="function")_pN401(p);
+if(p==="productivity"||p==="resources"){
+setTimeout(translatePages,200);
+setTimeout(translatePages,800);
+setTimeout(translatePages,2000);
+}
+};
+})();
+</script>
 </html>
