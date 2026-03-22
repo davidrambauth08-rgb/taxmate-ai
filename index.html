@@ -5605,4 +5605,55 @@ return '<div style="background:'+bg+';border-left:4px solid '+bd+';border-radius
 },3200);
 })();
 </script>
+<script>
+/* v3.9: Sync dashboard tax with calculator — use taxableIncome not profit */
+(function(){
+function fixDashTax(){
+var inc=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
+var exp=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
+var visa=localStorage.getItem("taxmate-visa")||"citizen";
+var totalInc=inc.reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var deductions=exp.filter(function(e){return e.deduction==="yes"||e.deduction===true;}).reduce(function(s,e){return s+(parseFloat(e.amount)||0);},0);
+var taxableIncome=totalInc-deductions;
+if(taxableIncome<0)taxableIncome=0;
+var estTax=typeof window._taxByVisa==="function"?window._taxByVisa(taxableIncome,visa):0;
+var fmt=function(n){return"$"+Math.abs(Math.round(n)).toLocaleString("en-AU");};
+var dash=document.getElementById("page-dashboard");
+if(!dash)return;
+dash.querySelectorAll(".kpi-card,.card").forEach(function(card){
+var lbl=card.querySelector(".kpi-label,small");
+if(!lbl)return;
+var lt=lbl.textContent.toLowerCase();
+if(lt.indexOf("impuesto")!==-1||lt.indexOf("tax")!==-1){
+var valEl=card.querySelector(".kpi-value")||lbl.nextElementSibling;
+if(valEl)valEl.textContent=fmt(estTax);
+}
+});
+}
+/* Run every 500ms for first 5 seconds to catch any overwrites */
+var count=0;
+var iv=setInterval(function(){
+fixDashTax();
+count++;
+if(count>=10){clearInterval(iv);}
+},500);
+/* Also hook into navigate */
+var _pNav39=window.navigate;
+window.navigate=function(page){
+if(typeof _pNav39==="function")_pNav39(page);
+if(page==="dashboard"){
+setTimeout(fixDashTax,100);
+setTimeout(fixDashTax,500);
+setTimeout(fixDashTax,1500);
+setTimeout(fixDashTax,3000);
+}
+};
+/* Hook into updateKPIs too */
+var _pKPI39=window.updateKPIs;
+window.updateKPIs=function(){
+if(typeof _pKPI39==="function")_pKPI39();
+fixDashTax();
+};
+})();
+</script>
 </html>
