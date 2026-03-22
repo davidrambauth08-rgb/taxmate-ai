@@ -6615,4 +6615,345 @@ setTimeout(function(){translateAll();if(p==="reports"){injectReportsCharts();}if
 setTimeout(function(){translateAll();translateInsights();translateInvest();injectReportsCharts();},3000);
 })();
 </script>
+
+<script>
+/* v4.5: Free vs Pro differentiation â locks, badges, upgrade modal, comparison page */
+(function(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+var es=lang==="es";
+var plan=localStorage.getItem("taxmate-plan")||"free"; // "free" or "pro"
+
+/* ====== CSS ====== */
+var css=document.createElement("style");
+css.textContent=`
+/* PRO badge on nav items */
+.nav-item .pro-badge{display:inline-block;font-size:9px;font-weight:700;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;padding:1px 5px;border-radius:4px;margin-left:6px;letter-spacing:.5px;vertical-align:middle;line-height:1.4}
+.nav-item .lock-icon{margin-left:auto;opacity:.5;font-size:12px}
+
+/* Sidebar plan badge */
+.sidebar-plan-badge{display:flex;align-items:center;gap:6px;margin:4px 16px 8px 16px;padding:6px 10px;border-radius:8px;font-size:11px;font-weight:600;letter-spacing:.3px}
+.sidebar-plan-badge.free{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)}
+.sidebar-plan-badge.pro{background:linear-gradient(135deg,rgba(217,119,6,.2),rgba(245,158,11,.1));color:#F59E0B;border:1px solid rgba(245,158,11,.25)}
+.sidebar-plan-badge .plan-dot{width:7px;height:7px;border-radius:50%}
+.sidebar-plan-badge.free .plan-dot{background:#6B7280}
+.sidebar-plan-badge.pro .plan-dot{background:#F59E0B}
+
+/* Upgrade card in sidebar */
+.sidebar-upgrade{margin:12px;padding:14px;border-radius:12px;background:linear-gradient(135deg,#0F2557 0%,#1E3A8A 100%);border:1px solid rgba(245,158,11,.3);cursor:pointer;transition:all .2s}
+.sidebar-upgrade:hover{border-color:rgba(245,158,11,.6);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.sidebar-upgrade-title{color:#F59E0B;font-size:12px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.sidebar-upgrade-desc{color:rgba(255,255,255,.6);font-size:10px;line-height:1.4}
+.sidebar-upgrade-btn{display:block;margin-top:8px;padding:6px 0;text-align:center;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.3px}
+
+/* Upgrade modal overlay */
+.pro-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .25s}
+.pro-modal-overlay.show{opacity:1}
+.pro-modal{background:#fff;border-radius:20px;padding:32px;max-width:520px;width:90%;box-shadow:0 24px 48px rgba(0,0,0,.2);position:relative;transform:scale(.9);transition:transform .25s}
+.pro-modal-overlay.show .pro-modal{transform:scale(1)}
+.pro-modal-close{position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#6B7280;padding:4px 8px}
+.pro-modal-icon{width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#D97706,#F59E0B);display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px}
+.pro-modal h2{font-size:22px;font-weight:800;color:#0F2557;margin-bottom:6px}
+.pro-modal p.subtitle{color:#6B7280;font-size:14px;margin-bottom:20px}
+.pro-features-list{list-style:none;padding:0;margin:0 0 24px 0}
+.pro-features-list li{padding:8px 0;display:flex;align-items:center;gap:10px;font-size:13px;color:#374151;border-bottom:1px solid #F3F4F6}
+.pro-features-list li:last-child{border-bottom:none}
+.pro-features-list li .check{color:#10B981;font-size:16px;flex-shrink:0}
+.pro-modal-cta{display:block;width:100%;padding:14px;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;transition:all .2s}
+.pro-modal-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(217,119,6,.4)}
+.pro-modal-price{text-align:center;margin-bottom:16px}
+.pro-modal-price .amount{font-size:36px;font-weight:800;color:#0F2557}
+.pro-modal-price .amount span{font-size:16px;font-weight:500;color:#6B7280}
+.pro-modal-price .yearly{font-size:12px;color:#6B7280}
+.pro-modal-skip{display:block;text-align:center;margin-top:10px;color:#9CA3AF;font-size:12px;cursor:pointer;border:none;background:none}
+
+/* Lock overlay on Pro page content */
+.pro-lock-overlay{position:relative}
+.pro-lock-overlay::after{content:"";position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0) 0%,rgba(255,255,255,.85) 60%,rgba(255,255,255,.97) 100%);z-index:50;pointer-events:none;border-radius:12px}
+.pro-lock-cta{position:absolute;bottom:30%;left:50%;transform:translateX(-50%);z-index:51;text-align:center}
+.pro-lock-cta button{padding:12px 28px;background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 12px rgba(217,119,6,.3)}
+.pro-lock-cta .lock-label{display:block;margin-bottom:8px;font-size:13px;color:#6B7280;font-weight:500}
+
+/* Comparison page */
+#page-plans{display:none;padding:24px}
+.plans-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:700px;margin:24px auto}
+.plan-card{border-radius:16px;padding:28px;border:2px solid #E5E7EB;position:relative;transition:all .2s}
+.plan-card.current{border-color:#0D9488;background:rgba(13,148,136,.03)}
+.plan-card.recommended{border-color:#D97706;background:rgba(217,119,6,.03)}
+.plan-card .plan-tag{position:absolute;top:-10px;left:20px;padding:2px 10px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px}
+.plan-card.current .plan-tag{background:#0D9488;color:#fff}
+.plan-card.recommended .plan-tag{background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff}
+.plan-card h3{font-size:20px;font-weight:800;color:#0F2557;margin-bottom:4px}
+.plan-card .plan-price{font-size:32px;font-weight:800;color:#0F2557;margin:12px 0}
+.plan-card .plan-price span{font-size:14px;font-weight:400;color:#6B7280}
+.plan-card .plan-features{list-style:none;padding:0;margin:16px 0}
+.plan-card .plan-features li{padding:6px 0;font-size:13px;color:#374151;display:flex;align-items:center;gap:8px}
+.plan-card .plan-features li .icon{font-size:14px}
+.plan-card .plan-features li.disabled{color:#9CA3AF;text-decoration:line-through}
+.plan-card .plan-btn{display:block;width:100%;padding:12px;border-radius:10px;font-size:14px;font-weight:700;text-align:center;cursor:pointer;margin-top:16px;border:none;transition:all .2s}
+.plan-card.current .plan-btn{background:#E5E7EB;color:#6B7280;cursor:default}
+.plan-card.recommended .plan-btn{background:linear-gradient(135deg,#D97706,#F59E0B);color:#fff}
+.plan-card.recommended .plan-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(217,119,6,.4)}
+`;
+document.head.appendChild(css);
+
+/* ====== PRO FEATURES CONFIG ====== */
+var PRO_PAGES=["insights","invest","productivity"];
+var PRO_FEATURES_LIST=[
+  es?"Perspectivas IA ilimitadas":"Unlimited AI Insights",
+  es?"Herramientas de inversiÃ³n completas":"Full Investment Tools",
+  es?"Panel de productividad avanzado":"Advanced Productivity Dashboard",
+  es?"Exportar PDF de reportes":"Export PDF Reports",
+  es?"AnÃ¡lisis financiero detallado":"Detailed Financial Analysis",
+  es?"Soporte prioritario":"Priority Support",
+  es?"IntegraciÃ³n con ATO (prÃ³ximamente)":"ATO Integration (coming soon)",
+  es?"Alertas BAS automÃ¡ticas":"Automatic BAS Alerts"
+];
+
+/* ====== SIDEBAR: Plan badge under user ====== */
+function injectSidebarBadge(){
+  if(document.getElementById("v45-plan-badge")) return;
+  var userDiv=document.querySelector(".sidebar-user");
+  if(!userDiv) return;
+  var badge=document.createElement("div");
+  badge.id="v45-plan-badge";
+  badge.className="sidebar-plan-badge "+(plan==="pro"?"pro":"free");
+  badge.innerHTML='<span class="plan-dot"></span>'+(plan==="pro"?"PRO":(es?"PLAN GRATIS":"FREE PLAN"));
+  userDiv.after(badge);
+}
+
+/* ====== SIDEBAR: PRO badges on nav items ====== */
+function injectNavBadges(){
+  if(document.querySelector(".pro-badge")) return;
+  var navItems=document.querySelectorAll(".nav-item");
+  navItems.forEach(function(item){
+    var onclick=item.getAttribute("onclick")||"";
+    var isPro=false;
+    PRO_PAGES.forEach(function(p){ if(onclick.indexOf("'"+p+"'")>-1) isPro=true; });
+    if(isPro && plan!=="pro"){
+      // Only add if not already there
+      if(!item.querySelector(".pro-badge")){
+        var badge=document.createElement("span");
+        badge.className="pro-badge";
+        badge.textContent="PRO";
+        item.appendChild(badge);
+      }
+    }
+  });
+}
+
+/* ====== SIDEBAR: Upgrade card ====== */
+function injectUpgradeCard(){
+  if(document.getElementById("v45-upgrade-card")) return;
+  if(plan==="pro") return;
+  var footer=document.querySelector(".sidebar-footer");
+  if(!footer) return;
+  var card=document.createElement("div");
+  card.id="v45-upgrade-card";
+  card.className="sidebar-upgrade";
+  card.onclick=function(){ showUpgradeModal(); };
+  card.innerHTML='<div class="sidebar-upgrade-title">â¡ '+(es?"Desbloquea PRO":"Unlock PRO")+'</div>'
+    +'<div class="sidebar-upgrade-desc">'+(es?"ObtÃ©n IA insights, inversiones, exportar PDF y mÃ¡s.":"Get AI insights, investments, PDF exports & more.")+'</div>'
+    +'<div class="sidebar-upgrade-btn">'+(es?"Mejorar Plan â":"Upgrade Now â")+'</div>';
+  footer.before(card);
+}
+
+/* ====== UPGRADE MODAL ====== */
+function showUpgradeModal(){
+  var existing=document.getElementById("v45-pro-modal");
+  if(existing){ existing.classList.add("show"); return; }
+  var overlay=document.createElement("div");
+  overlay.id="v45-pro-modal";
+  overlay.className="pro-modal-overlay";
+  var featHTML="";
+  PRO_FEATURES_LIST.forEach(function(f){
+    featHTML+='<li><span class="check">â</span>'+f+'</li>';
+  });
+  overlay.innerHTML='<div class="pro-modal">'
+    +'<button class="pro-modal-close" onclick="document.getElementById(\'v45-pro-modal\').classList.remove(\'show\')">&times;</button>'
+    +'<div class="pro-modal-icon">ð</div>'
+    +'<h2>'+(es?"Mejora a TaxMate PRO":"Upgrade to TaxMate PRO")+'</h2>'
+    +'<p class="subtitle">'+(es?"Lleva tu negocio al siguiente nivel con herramientas avanzadas":"Take your business to the next level with advanced tools")+'</p>'
+    +'<div class="pro-modal-price"><div class="amount">$9.90<span>'+(es?"/mes":"/mo")+'</span></div><div class="yearly">'+(es?"o $99/aÃ±o (ahorra 17%)":"or $99/yr (save 17%)")+'</div></div>'
+    +'<ul class="pro-features-list">'+featHTML+'</ul>'
+    +'<button class="pro-modal-cta" onclick="alert(\''+(es?"PrÃ³ximamente! Estamos preparando los pagos.":"Coming soon! We are setting up payments.")+'\');document.getElementById(\'v45-pro-modal\').classList.remove(\'show\')">'+(es?"Comenzar PRO â $9.90/mes":"Start PRO â $9.90/mo")+'</button>'
+    +'<button class="pro-modal-skip" onclick="document.getElementById(\'v45-pro-modal\').classList.remove(\'show\')">'+(es?"Continuar con plan gratis":"Continue with free plan")+'</button>'
+    +'</div>';
+  document.body.appendChild(overlay);
+  requestAnimationFrame(function(){ overlay.classList.add("show"); });
+}
+window.showUpgradeModal=showUpgradeModal;
+
+/* ====== LOCK OVERLAY on Pro pages ====== */
+function addLockOverlay(pageId){
+  if(plan==="pro") return;
+  var page=document.getElementById("page-"+pageId);
+  if(!page) return;
+  if(page.querySelector(".pro-lock-cta")) return;
+  // Make page content relative for overlay
+  var firstCard=page.querySelector('.card, [style*="border-radius"], div[style]');
+  if(!firstCard) return;
+  // Wrap remaining content in overlay
+  var wrapper=document.createElement("div");
+  wrapper.className="pro-lock-overlay";
+  wrapper.style.cssText="min-height:300px;margin-top:16px;border-radius:12px;overflow:hidden;position:relative";
+  // Move children after first 2 elements into wrapper
+  var children=Array.from(page.children);
+  var moved=0;
+  children.forEach(function(c,i){
+    if(i>1 && !c.classList.contains("pro-lock-cta")){
+      wrapper.appendChild(c.cloneNode(true));
+      c.style.display="none";
+      moved++;
+    }
+  });
+  if(moved>0){
+    page.appendChild(wrapper);
+    var cta=document.createElement("div");
+    cta.className="pro-lock-cta";
+    cta.innerHTML='<span class="lock-label">ð '+(es?"Contenido PRO":"PRO Content")+'</span>'
+      +'<button onclick="showUpgradeModal()">'+(es?"Desbloquear con PRO â":"Unlock with PRO â")+'</button>';
+    wrapper.appendChild(cta);
+  }
+}
+
+/* ====== COMPARISON PAGE ====== */
+function createPlansPage(){
+  if(document.getElementById("page-plans")) return;
+  var page=document.createElement("div");
+  page.id="page-plans";
+  page.style.display="none";
+
+  var FREE_FEATURES=[
+    {text:es?"Panel financiero":"Financial Dashboard",free:true,pro:true},
+    {text:es?"Registrar ingresos y gastos":"Track Income & Expenses",free:true,pro:true},
+    {text:es?"Crear facturas":"Create Invoices",free:true,pro:true},
+    {text:es?"Estimador de impuestos bÃ¡sico":"Basic Tax Estimator",free:true,pro:true},
+    {text:es?"Reportes mensuales":"Monthly Reports",free:true,pro:true},
+    {text:es?"Exportar CSV":"Export CSV",free:true,pro:true},
+    {text:es?"3 perspectivas IA":"3 AI Insights",free:true,pro:true},
+    {text:es?"Perspectivas IA ilimitadas":"Unlimited AI Insights",free:false,pro:true},
+    {text:es?"Herramientas de inversiÃ³n":"Investment Tools",free:false,pro:true},
+    {text:es?"Panel de productividad":"Productivity Dashboard",free:false,pro:true},
+    {text:es?"Exportar PDF":"Export PDF",free:false,pro:true},
+    {text:es?"AnÃ¡lisis financiero avanzado":"Advanced Financial Analysis",free:false,pro:true},
+    {text:es?"Alertas BAS automÃ¡ticas":"Automatic BAS Alerts",free:false,pro:true},
+    {text:es?"Soporte prioritario":"Priority Support",free:false,pro:true},
+    {text:es?"IntegraciÃ³n ATO":"ATO Integration",free:false,pro:true}
+  ];
+
+  var freeListHTML="";
+  var proListHTML="";
+  FREE_FEATURES.forEach(function(f){
+    freeListHTML+='<li class="'+(f.free?"":"disabled")+'"><span class="icon">'+(f.free?"â":"â")+'</span>'+f.text+'</li>';
+    proListHTML+='<li><span class="icon">â</span>'+f.text+'</li>';
+  });
+
+  page.innerHTML='<div style="max-width:800px;margin:0 auto">'
+    +'<h1 style="font-family:Caveat,cursive;font-size:32px;color:#0F2557;margin-bottom:4px">'+(es?"Elige tu Plan":"Choose Your Plan")+'</h1>'
+    +'<p style="color:#6B7280;margin-bottom:24px">'+(es?"Compara y elige el plan que mejor se adapte a tu negocio":"Compare and choose the plan that fits your business")+'</p>'
+    +'<div class="plans-grid">'
+    +'<div class="plan-card '+(plan==="free"?"current":"")+'"><div class="plan-tag">'+(plan==="free"?(es?"TU PLAN":"CURRENT"):"")+'</div>'
+    +'<h3>Free</h3><p style="color:#6B7280;font-size:13px">'+(es?"Perfecto para empezar":"Perfect to get started")+'</p>'
+    +'<div class="plan-price">$0<span>'+(es?"/siempre":"/forever")+'</span></div>'
+    +'<ul class="plan-features">'+freeListHTML+'</ul>'
+    +'<button class="plan-btn">'+(plan==="free"?(es?"Plan Actual":"Current Plan"):(es?"Cambiar a Free":"Switch to Free"))+'</button></div>'
+    +'<div class="plan-card '+(plan==="pro"?"current":"recommended")+'"><div class="plan-tag">'+(plan==="pro"?(es?"TU PLAN":"CURRENT"):(es?"RECOMENDADO":"RECOMMENDED"))+'</div>'
+    +'<h3>Pro</h3><p style="color:#6B7280;font-size:13px">'+(es?"Para negocios en crecimiento":"For growing businesses")+'</p>'
+    +'<div class="plan-price">$9.90<span>'+(es?"/mes":"/mo")+'</span></div>'
+    +'<ul class="plan-features">'+proListHTML+'</ul>'
+    +'<button class="plan-btn" onclick="alert(\''+(es?"PrÃ³ximamente! Estamos preparando los pagos.":"Coming soon! Payments coming soon.")+'\')">'+
+    (plan==="pro"?(es?"Plan Actual":"Current Plan"):(es?"Comenzar PRO â":"Start PRO â"))+'</button></div>'
+    +'</div></div>';
+
+  // Insert into main-content (where all pages live)
+  var mc=document.querySelector(".main-content");
+  if(mc) mc.appendChild(page);
+}
+
+/* ====== Add "Plans" nav item to sidebar ====== */
+function addPlansNavItem(){
+  if(document.querySelector('[onclick*="plans"]')) return;
+  var configItem=null;
+  var navItems=document.querySelectorAll(".nav-item");
+  navItems.forEach(function(n){
+    if((n.getAttribute("onclick")||"").indexOf("settings")>-1) configItem=n;
+  });
+  if(!configItem) return;
+  var plansItem=document.createElement("a");
+  plansItem.className="nav-item";
+  plansItem.href="#";
+  plansItem.setAttribute("onclick","navigate('plans')");
+  plansItem.innerHTML="ð "+(es?"Planes":"Plans");
+  configItem.before(plansItem);
+}
+
+/* ====== NAV OVERRIDE: intercept Pro page navigation ====== */
+var _pNav45=window.navigate;
+window.navigate=function(p){
+  // Handle plans page
+  if(p==="plans"){
+    // Hide all pages, show plans
+    document.querySelectorAll('[id^="page-"]').forEach(function(pg){pg.style.display="none";});
+    var plansPage=document.getElementById("page-plans");
+    if(plansPage) plansPage.style.display="block";
+    // Update active nav
+    document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active');});
+    var plansNav=document.querySelector('[onclick*="plans"]');
+    if(plansNav) plansNav.classList.add('active');
+    return;
+  }
+
+  // Call original navigate
+  if(typeof _pNav45==="function") _pNav45(p);
+
+  // After navigation, add lock overlays for Pro pages if on free plan
+  setTimeout(function(){
+    if(plan!=="pro"){
+      PRO_PAGES.forEach(function(pp){
+        if(p===pp) addLockOverlay(pp);
+      });
+    }
+    // Re-inject badges (nav may have been rebuilt)
+    injectNavBadges();
+  },800);
+};
+
+/* ====== INTERCEPT EXPORT PDF ====== */
+function interceptExportPDF(){
+  if(plan==="pro") return;
+  var pdfBtns=document.querySelectorAll('button, a');
+  pdfBtns.forEach(function(btn){
+    var text=btn.textContent.trim().toLowerCase();
+    if((text.indexOf("export pdf")>-1 || text.indexOf("exportar pdf")>-1) && !btn.dataset.v45locked){
+      btn.dataset.v45locked="1";
+      var origClick=btn.onclick;
+      btn.onclick=function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        showUpgradeModal();
+        return false;
+      };
+      // Add lock icon
+      if(!btn.querySelector(".pro-badge")){
+        btn.insertAdjacentHTML("beforeend",' <span class="pro-badge" style="font-size:8px;padding:1px 4px">PRO</span>');
+      }
+    }
+  });
+}
+
+/* ====== INIT ====== */
+function initV45(){
+  injectSidebarBadge();
+  injectNavBadges();
+  injectUpgradeCard();
+  createPlansPage();
+  addPlansNavItem();
+  interceptExportPDF();
+}
+
+setTimeout(initV45,2000);
+setTimeout(function(){ injectNavBadges(); interceptExportPDF(); },4000);
+})();
+
+</script>
 </html>
