@@ -7254,4 +7254,48 @@ setTimeout(fixInvoiceViewButtons,2000);
 setTimeout(fixInvoiceViewButtons,4000);
 })();
 </script>
+<script>
+/* v4.9: Fix language switching — preserve page state across reload + auto-enter app */
+(function(){
+function autoEnterApp(){
+  var user=localStorage.getItem("taxmate-user");
+  if(!user) return;
+  var returnPage=localStorage.getItem("taxmate-return-page");
+  if(!returnPage) return;
+  localStorage.removeItem("taxmate-return-page");
+  if(typeof window.showApp==="function"){
+    try{window.showApp();}catch(e){}
+  }
+  setTimeout(function(){
+    if(typeof window.navigate==="function"){
+      try{window.navigate(returnPage);}catch(e){}
+    }
+  },300);
+}
+setTimeout(autoEnterApp,500);
+setTimeout(autoEnterApp,1200);
+setTimeout(autoEnterApp,2500);
+var _wait49=setInterval(function(){
+  if(typeof window.setLang!=="function") return;
+  clearInterval(_wait49);
+  var _origSetLang49=window.setLang;
+  window.setLang=function(code){
+    var cur=localStorage.getItem("taxmate-lang")||"en";
+    if(code===cur){_origSetLang49(code);return;}
+    var activePage="dashboard";
+    var allPages=document.querySelectorAll('[id^="page-"]');
+    for(var i=0;i<allPages.length;i++){
+      var p=allPages[i];
+      if(p.style.display!=="none"&&p.offsetParent!==null){
+        activePage=p.id.replace("page-","");
+        break;
+      }
+    }
+    localStorage.setItem("taxmate-return-page",activePage);
+    _origSetLang49(code);
+    location.reload();
+  };
+},200);
+})();
+</script>
 </html>
