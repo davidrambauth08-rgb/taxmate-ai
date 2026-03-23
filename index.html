@@ -7661,4 +7661,78 @@ _obs52.observe(document.body,{childList:true,subtree:true});
 
 })();
 </script>
+<script>
+/* v5.3: Admin/owner unlock — full PRO + Free access for Dave Rambauth */
+(function(){
+var user={};
+try{user=JSON.parse(localStorage.getItem("taxmate-user")||"{}");}catch(e){}
+var isOwner=(user.email==="davidrambauth08@gmail.com"||user.name==="Dave Rambauth");
+if(!isOwner) return;
+
+/* Set plan to pro so internal checks pass */
+localStorage.setItem("taxmate-plan","pro");
+
+/* Empty PRO_PAGES so navigate doesn't block */
+if(typeof PRO_PAGES!=="undefined") window.PRO_PAGES=[];
+
+/* Override showUpgradeModal to no-op */
+window.showUpgradeModal=function(){};
+
+/* Update sidebar badge */
+function updateSidebarBadge(){
+  var badge=document.getElementById("v45-plan-badge");
+  if(!badge) badge=document.querySelector(".sidebar-plan-badge");
+  if(badge){
+    badge.className=badge.className.replace("free","pro");
+    badge.innerHTML='<span class="plan-dot" style="background:#10B981;"><\/span> ADMIN \u2014 PRO + FREE';
+    badge.style.background="linear-gradient(135deg, #0F2557 0%, #1a3a7a 100%)";
+    badge.style.color="#E8EEF9";
+    badge.style.fontSize="11px";
+    badge.style.fontWeight="700";
+    badge.style.letterSpacing="0.5px";
+  }
+}
+
+/* Remove PRO lock tags and enable all nav items */
+function removePROLocks(){
+  document.querySelectorAll(".pro-lock-tag").forEach(function(el){el.style.display="none";});
+  document.querySelectorAll(".nav-item").forEach(function(item){
+    item.style.opacity="1";
+    item.style.pointerEvents="auto";
+    item.style.cursor="pointer";
+  });
+  var upgrade=document.querySelector(".sidebar-upgrade");
+  if(upgrade) upgrade.style.display="none";
+}
+
+/* Override navigate to bypass PRO checks */
+var _origNav53=window.navigate;
+if(typeof _origNav53==="function"){
+  window.navigate=function(p){
+    if(typeof PRO_PAGES!=="undefined") window.PRO_PAGES=[];
+    window.showUpgradeModal=function(){};
+    _origNav53(p);
+    setTimeout(removePROLocks,200);
+    setTimeout(removePROLocks,600);
+  };
+}
+
+/* Run on load */
+setTimeout(function(){updateSidebarBadge();removePROLocks();},300);
+setTimeout(function(){updateSidebarBadge();removePROLocks();},1000);
+setTimeout(removePROLocks,2500);
+
+/* MutationObserver to keep PRO locks removed */
+var _obs53=new MutationObserver(function(muts){
+  var dominated=false;
+  muts.forEach(function(m){if(m.addedNodes.length>0) dominated=true;});
+  if(dominated){
+    clearTimeout(window._t53);
+    window._t53=setTimeout(function(){removePROLocks();updateSidebarBadge();},200);
+  }
+});
+_obs53.observe(document.body,{childList:true,subtree:true});
+
+})();
+</script>
 </html>
