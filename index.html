@@ -7528,4 +7528,137 @@ _obs51.observe(document.body,{childList:true,subtree:true});
 
 })();
 </script>
+<script>
+/* v5.2: Final Spanish translation pass — emoji-prefixed headers, select options, remaining text */
+(function(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+if(lang==="en") return;
+
+/* Exact-match map for plain text nodes */
+var globalMap={
+  "Save Changes":"Guardar Cambios",
+  "Backup & Restore":"Respaldo y Restauración",
+  "Export all your data as JSON or import a previous backup.":"Exporta todos tus datos como JSON o importa un respaldo anterior.",
+  "Export Data":"Exportar Datos","Import Data":"Importar Datos",
+  "Danger Zone":"Zona de Peligro","Delete All Data":"Eliminar Todos los Datos",
+  "Total Invoiced":"Total Facturado","TOTAL INVOICED":"TOTAL FACTURADO",
+  "Invoice #":"Factura #","INVOICE #":"FACTURA #",
+  "Issue Date":"Fecha Emisión","ISSUE DATE":"FECHA EMISIÓN",
+  "Actions":"Acciones","ACTIONS":"ACCIONES",
+  "DUE DATE":"FECHA VENCIMIENTO","AMOUNT":"MONTO","STATUS":"ESTADO","CLIENT":"CLIENTE",
+  "Last year":"Año pasado","This year":"Este año",
+  "Recent Transactions":"Transacciones Recientes",
+  "Pending":"Pendiente","Expense":"Gasto","No receipt":"Sin recibo",
+  "Visa: Citizen":"Visa: Ciudadano","New":"Nuevo",
+  "records":"registros","Financial Summary":"Resumen Financiero",
+  "Export CSV":"Exportar CSV",
+  "Grow Money":"Invertir",
+  "Personalised investment options for Australia":"Opciones de inversión personalizadas para Australia",
+  "Comenzar PRO":"Comenzar PRO"
+};
+
+/* Partial-match map: for text nodes containing emoji prefixes or embedded phrases */
+var partialMap={
+  "Business Profile":"Perfil de Negocio",
+  "Tax & GST Settings":"Configuración de Impuestos y GST",
+  "Appearance":"Apariencia",
+  "Backup Data":"Respaldar Datos",
+  "Restore Data":"Restaurar Datos",
+  "Light":"Claro",
+  "Dark":"Oscuro",
+  "vs last month":"vs mes anterior",
+  "Last updated just now":"Última actualización: ahora",
+  "Last updated":"Últ. actualización:",
+  "Last year":"Año pasado",
+  "This year":"Este año",
+  "No receipt":"Sin recibo",
+  "Export CSV":"Exportar CSV",
+  "Working Holiday":"Visa Working Holiday"
+};
+
+/* Select option translations */
+var optionMap={
+  "Monthly":"Mensual","Quarterly":"Trimestral","Annually":"Anual",
+  "Freelancer":"Freelancer","Business":"Negocio","Personal":"Personal",
+  "Light":"Claro","Dark":"Oscuro",
+  "0% (GST-free)":"0% (libre de GST)",
+  "10% (standard)":"10% (estándar)"
+};
+
+function translateAll(){
+  /* 1. TreeWalker for text nodes */
+  var walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while(node=walker.nextNode()){
+    var t=node.textContent.trim();
+    if(!t) continue;
+    /* Exact match first */
+    if(globalMap[t]){
+      node.textContent=node.textContent.replace(t,globalMap[t]);
+      continue;
+    }
+    /* Partial matches for emoji-prefixed and embedded text */
+    for(var en in partialMap){
+      if(t.indexOf(en)>=0 && t.indexOf(partialMap[en])<0){
+        node.textContent=node.textContent.replace(en,partialMap[en]);
+      }
+    }
+  }
+
+  /* 2. Placeholders */
+  document.querySelectorAll("input[placeholder]").forEach(function(inp){
+    var ph=inp.placeholder;
+    if(ph.indexOf("invoices")>=0) inp.placeholder="Buscar facturas...";
+    else if(ph.indexOf("income")>=0) inp.placeholder="Buscar ingresos...";
+    else if(ph.indexOf("expenses")>=0) inp.placeholder="Buscar gastos...";
+    else if(ph==="Search...") inp.placeholder="Buscar...";
+  });
+
+  /* 3. Select/option elements */
+  document.querySelectorAll("select option").forEach(function(opt){
+    var t=opt.textContent.trim();
+    if(optionMap[t]) opt.textContent=optionMap[t];
+    /* Handle em-dash options */
+    if(t==="Yes \u2014 GST registered") opt.textContent="S\u00ed \u2014 Registrado en GST";
+    if(t==="No \u2014 Not registered") opt.textContent="No \u2014 No registrado";
+    if(t==="AUD \u2014 Australian Dollar") opt.textContent="AUD \u2014 D\u00f3lar Australiano";
+    if(t==="TFN \u2014 Employee (tax withheld by employer)") opt.textContent="TFN \u2014 Empleado (tax retenido por empleador)";
+  });
+
+  /* 4. Button innerHTML for Export CSV */
+  document.querySelectorAll("button").forEach(function(btn){
+    if(btn.innerHTML.indexOf("Export CSV")>=0) btn.innerHTML=btn.innerHTML.replace("Export CSV","Exportar CSV");
+    if(btn.innerHTML.indexOf("Backup Data")>=0) btn.innerHTML=btn.innerHTML.replace("Backup Data","Respaldar Datos");
+    if(btn.innerHTML.indexOf("Restore Data")>=0) btn.innerHTML=btn.innerHTML.replace("Restore Data","Restaurar Datos");
+  });
+}
+
+/* Hook navigate */
+var _origNav52=window.navigate;
+if(typeof _origNav52==="function"){
+  window.navigate=function(p){
+    _origNav52(p);
+    setTimeout(translateAll,200);
+    setTimeout(translateAll,600);
+  };
+}
+
+/* Run on load */
+setTimeout(translateAll,400);
+setTimeout(translateAll,1200);
+setTimeout(translateAll,2500);
+
+/* MutationObserver */
+var _obs52=new MutationObserver(function(muts){
+  var dominated=false;
+  muts.forEach(function(m){ if(m.addedNodes.length>0) dominated=true; });
+  if(dominated){
+    clearTimeout(window._t52);
+    window._t52=setTimeout(translateAll,250);
+  }
+});
+_obs52.observe(document.body,{childList:true,subtree:true});
+
+})();
+</script>
 </html>
