@@ -7738,26 +7738,68 @@ _obs53.observe(document.body,{childList:true,subtree:true});
 <script>
 /* v5.4: Replace doughnut/pie charts with monthly bar charts */
 (function(){
+
 var MONTHS_ES=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 var MONTHS_EN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function getMonthLabel(ym){var parts=ym.split("-");var mi=parseInt(parts[1],10)-1;var lang=localStorage.getItem("taxmate-lang")||"en";var labels=lang==="es"?MONTHS_ES:MONTHS_EN;return labels[mi]+" "+parts[0].substring(2);}
-function getMonthRange(){var now=new Date();var months=[];for(var i=11;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);var ym=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");months.push(ym);}return months;}
-function aggregateByMonth(arr){var byMonth={};(arr||[]).forEach(function(item){var d=item.date||"";var ym=d.substring(0,7);if(!ym)return;byMonth[ym]=(byMonth[ym]||0)+(parseFloat(item.amount)||0);});return byMonth;}
+
+function getMonthLabel(ym){
+  var parts=ym.split("-");
+  var mi=parseInt(parts[1],10)-1;
+  var lang=localStorage.getItem("taxmate-lang")||"en";
+  var labels=lang==="es"?MONTHS_ES:MONTHS_EN;
+  return labels[mi]+" "+parts[0].substring(2);
+}
+
+function getMonthRange(){
+  var now=new Date();
+  var months=[];
+  for(var i=11;i>=0;i--){
+    var d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    var ym=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+    months.push(ym);
+  }
+  return months;
+}
+
+function aggregateByMonth(arr){
+  var byMonth={};
+  (arr||[]).forEach(function(item){
+    var d=item.date||"";
+    var ym=d.substring(0,7);
+    if(!ym) return;
+    byMonth[ym]=(byMonth[ym]||0)+(parseFloat(item.amount)||0);
+  });
+  return byMonth;
+}
 
 function makeBarChart(canvas,labels,datasets){
   var existing=Chart.getChart(canvas);
   if(existing) existing.destroy();
-  canvas.style.width="100%";canvas.style.height="280px";
+  canvas.style.width="100%";
+  canvas.style.height="280px";
   if(canvas.parentElement) canvas.parentElement.style.width="100%";
-  var ctx=canvas.getContext("2d");
-  return new Chart(ctx,{type:"bar",data:{labels:labels,datasets:datasets},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:datasets.length>1,position:"top",labels:{font:{family:"Inter",size:12},usePointStyle:true}},
-        tooltip:{callbacks:{label:function(c){return c.dataset.label+": $"+c.parsed.y.toLocaleString();}}}},
-      scales:{x:{grid:{display:false},ticks:{font:{family:"Inter",size:11},color:"#8BA3C7"}},
-        y:{beginAtZero:true,grid:{color:"rgba(15,37,87,0.06)"},ticks:{font:{family:"Inter",size:11},color:"#8BA3C7",callback:function(v){return "$"+v.toLocaleString();}}}}
+  return new Chart(canvas.getContext("2d"),{
+    type:"bar",
+    data:{labels:labels,datasets:datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:datasets.length>1,position:"top",labels:{font:{family:"Inter",size:12},usePointStyle:true}},
+        tooltip:{callbacks:{label:function(c){return c.dataset.label+": $"+c.parsed.y.toLocaleString();}}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{font:{family:"Inter",size:11},color:"#8BA3C7"}},
+        y:{beginAtZero:true,grid:{color:"rgba(15,37,87,0.06)"},ticks:{font:{family:"Inter",size:11},color:"#8BA3C7",callback:function(v){return "$"+v.toLocaleString();}}}
+      }
     }
   });
+}
+
+function needsReplace(canvas){
+  if(!canvas) return false;
+  var chart=Chart.getChart(canvas);
+  if(!chart) return false;
+  return (chart.config.type==="doughnut"||chart.config.type==="pie");
 }
 
 function replaceDashboardChart(){
@@ -7765,66 +7807,116 @@ function replaceDashboardChart(){
   if(!canvas) return;
   var page=canvas.closest("[id^=page-]");
   if(page&&page.style.display==="none") return;
+  if(!needsReplace(canvas)) return;
   var income=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
   var expenses=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
-  var months=getMonthRange();var incBM=aggregateByMonth(income);var expBM=aggregateByMonth(expenses);
+  var months=getMonthRange();
+  var incByMonth=aggregateByMonth(income);
+  var expByMonth=aggregateByMonth(expenses);
   var labels=months.map(getMonthLabel);
+  var incData=months.map(function(m){return incByMonth[m]||0;});
+  var expData=months.map(function(m){return expByMonth[m]||0;});
   makeBarChart(canvas,labels,[
-    {label:"Ingresos",data:months.map(function(m){return incBM[m]||0;}),backgroundColor:"rgba(15,37,87,0.75)",borderRadius:4,barPercentage:0.6},
-    {label:"Gastos",data:months.map(function(m){return expBM[m]||0;}),backgroundColor:"rgba(220,38,38,0.65)",borderRadius:4,barPercentage:0.6}
+    {label:"Ingresos",data:incData,backgroundColor:"rgba(15,37,87,0.75)",borderRadius:4,barPercentage:0.6},
+    {label:"Gastos",data:expData,backgroundColor:"rgba(220,38,38,0.65)",borderRadius:4,barPercentage:0.6}
   ]);
-  var ec=document.getElementById("expCatChart");
-  if(ec) makeBarChart(ec,labels,[{label:"Gastos",data:months.map(function(m){return expBM[m]||0;}),backgroundColor:"rgba(13,148,136,0.7)",borderRadius:4,barPercentage:0.5}]);
+  var expCatCanvas=document.getElementById("expCatChart");
+  if(expCatCanvas&&needsReplace(expCatCanvas)){
+    makeBarChart(expCatCanvas,labels,[
+      {label:"Gastos",data:expData,backgroundColor:"rgba(13,148,136,0.7)",borderRadius:4,barPercentage:0.5}
+    ]);
+  }
 }
 
 function replaceIncomeChart(){
-  var canvas=document.getElementById("v42-income-chart-canvas");if(!canvas)return;
-  var page=canvas.closest("[id^=page-]");if(page&&page.style.display==="none")return;
+  var canvas=document.getElementById("v42-income-chart-canvas");
+  if(!canvas) return;
+  var page=canvas.closest("[id^=page-]");
+  if(page&&page.style.display==="none") return;
+  if(!needsReplace(canvas)) return;
   var income=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
-  var months=getMonthRange();var bm=aggregateByMonth(income);var labels=months.map(getMonthLabel);
+  var months=getMonthRange();
+  var incByMonth=aggregateByMonth(income);
+  var labels=months.map(getMonthLabel);
+  var data=months.map(function(m){return incByMonth[m]||0;});
   var lang=localStorage.getItem("taxmate-lang")||"en";
-  makeBarChart(canvas,labels,[{label:lang==="es"?"Ingresos":"Income",data:months.map(function(m){return bm[m]||0;}),backgroundColor:"rgba(15,37,87,0.75)",borderRadius:4,barPercentage:0.5}]);
+  makeBarChart(canvas,labels,[
+    {label:lang==="es"?"Ingresos":"Income",data:data,backgroundColor:"rgba(15,37,87,0.75)",borderRadius:4,barPercentage:0.5}
+  ]);
 }
 
 function replaceExpenseCharts(){
-  var c1=document.getElementById("v42-expense-chart-canvas");
-  var c2=document.getElementById("v42-deduction-chart-canvas");
-  var page=c1?c1.closest("[id^=page-]"):null;if(page&&page.style.display==="none")return;
+  var canvas1=document.getElementById("v42-expense-chart-canvas");
+  var canvas2=document.getElementById("v42-deduction-chart-canvas");
+  var page=canvas1?canvas1.closest("[id^=page-]"):null;
+  if(page&&page.style.display==="none") return;
   var expenses=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
-  var months=getMonthRange();var expBM=aggregateByMonth(expenses);var labels=months.map(getMonthLabel);
+  var months=getMonthRange();
+  var expByMonth=aggregateByMonth(expenses);
+  var labels=months.map(getMonthLabel);
+  var data=months.map(function(m){return expByMonth[m]||0;});
   var lang=localStorage.getItem("taxmate-lang")||"en";
-  if(c1) makeBarChart(c1,labels,[{label:lang==="es"?"Gastos":"Expenses",data:months.map(function(m){return expBM[m]||0;}),backgroundColor:"rgba(220,38,38,0.65)",borderRadius:4,barPercentage:0.5}]);
-  if(c2){var ded=expenses.filter(function(e){return e.deductible;});var dedBM=aggregateByMonth(ded);
-    makeBarChart(c2,labels,[{label:lang==="es"?"Deducciones":"Deductions",data:months.map(function(m){return dedBM[m]||0;}),backgroundColor:"rgba(217,119,6,0.65)",borderRadius:4,barPercentage:0.5}]);}
+  if(canvas1&&needsReplace(canvas1)){
+    makeBarChart(canvas1,labels,[
+      {label:lang==="es"?"Gastos":"Expenses",data:data,backgroundColor:"rgba(220,38,38,0.65)",borderRadius:4,barPercentage:0.5}
+    ]);
+  }
+  if(canvas2&&needsReplace(canvas2)){
+    var deductible=expenses.filter(function(e){return e.deductible;});
+    var dedByMonth=aggregateByMonth(deductible);
+    var dedData=months.map(function(m){return dedByMonth[m]||0;});
+    makeBarChart(canvas2,labels,[
+      {label:lang==="es"?"Deducciones":"Deductions",data:dedData,backgroundColor:"rgba(217,119,6,0.65)",borderRadius:4,barPercentage:0.5}
+    ]);
+  }
 }
 
 function replaceReportCharts(){
   var c1=document.getElementById("v44-rpt-income-chart-canvas");
   var c2=document.getElementById("v44-rpt-expense-chart-canvas");
-  if(!c1&&!c2)return;
-  var page=c1?c1.closest("[id^=page-]"):c2.closest("[id^=page-]");if(page&&page.style.display==="none")return;
+  if(!c1&&!c2) return;
+  var page=c1?c1.closest("[id^=page-]"):c2.closest("[id^=page-]");
+  if(page&&page.style.display==="none") return;
   var income=JSON.parse(localStorage.getItem("taxmate-income")||"[]");
   var expenses=JSON.parse(localStorage.getItem("taxmate-expenses")||"[]");
-  var months=getMonthRange();var incBM=aggregateByMonth(income);var expBM=aggregateByMonth(expenses);var labels=months.map(getMonthLabel);
-  if(c1){c1.style.height="180px";makeBarChart(c1,labels,[{label:"Ingresos",data:months.map(function(m){return incBM[m]||0;}),backgroundColor:"rgba(15,37,87,0.7)",borderRadius:3,barPercentage:0.5}]);}
-  if(c2){c2.style.height="180px";makeBarChart(c2,labels,[{label:"Gastos",data:months.map(function(m){return expBM[m]||0;}),backgroundColor:"rgba(220,38,38,0.6)",borderRadius:3,barPercentage:0.5}]);}
+  var months=getMonthRange();
+  var incByMonth=aggregateByMonth(income);
+  var expByMonth=aggregateByMonth(expenses);
+  var labels=months.map(getMonthLabel);
+  if(c1&&needsReplace(c1)){
+    c1.style.height="180px";
+    makeBarChart(c1,labels,[
+      {label:"Ingresos",data:months.map(function(m){return incByMonth[m]||0;}),backgroundColor:"rgba(15,37,87,0.7)",borderRadius:3,barPercentage:0.5}
+    ]);
+  }
+  if(c2&&needsReplace(c2)){
+    c2.style.height="180px";
+    makeBarChart(c2,labels,[
+      {label:"Gastos",data:months.map(function(m){return expByMonth[m]||0;}),backgroundColor:"rgba(220,38,38,0.6)",borderRadius:3,barPercentage:0.5}
+    ]);
+  }
 }
 
-function replaceAllCharts(){replaceDashboardChart();replaceIncomeChart();replaceExpenseCharts();replaceReportCharts();}
+function replaceAllCharts(){
+  try{replaceDashboardChart();}catch(e){}
+  try{replaceIncomeChart();}catch(e){}
+  try{replaceExpenseCharts();}catch(e){}
+  try{replaceReportCharts();}catch(e){}
+}
 
-var _origNav54=window.navigate;
-if(typeof _origNav54==="function"){
-  window.navigate=function(p){_origNav54(p);setTimeout(replaceAllCharts,500);setTimeout(replaceAllCharts,1200);};
-}
-var _origInitDash=window.initDashboardCharts;
-if(typeof _origInitDash==="function"){
-  window.initDashboardCharts=function(){_origInitDash.apply(this,arguments);setTimeout(replaceDashboardChart,300);};
-}
-setTimeout(replaceAllCharts,800);
-setTimeout(replaceAllCharts,2000);
-setTimeout(replaceAllCharts,4000);
-var _obs54=new MutationObserver(function(muts){var d=false;muts.forEach(function(m){if(m.addedNodes.length>0)d=true;});if(d){clearTimeout(window._t54);window._t54=setTimeout(replaceAllCharts,400);}});
+var _iv54=setInterval(replaceAllCharts,500);
+setTimeout(function(){clearInterval(_iv54);},120000);
+
+var _obs54=new MutationObserver(function(muts){
+  var dominated=false;
+  muts.forEach(function(m){if(m.addedNodes.length>0) dominated=true;});
+  if(dominated){
+    clearTimeout(window._t54);
+    window._t54=setTimeout(replaceAllCharts,400);
+  }
+});
 _obs54.observe(document.body,{childList:true,subtree:true});
+
 })();
 </script>
 </html>
