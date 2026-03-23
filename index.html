@@ -7798,8 +7798,9 @@ function makeBarChart(canvas,labels,datasets){
 function needsReplace(canvas){
   if(!canvas) return false;
   var chart=Chart.getChart(canvas);
-  if(!chart) return false;
-  return (chart.config.type==="doughnut"||chart.config.type==="pie");
+  if(!chart) return true; /* no chart = ghost canvas, needs bar */
+  if(chart.config.type==="bar") return false; /* already a bar */
+  return true; /* doughnut/pie/other = replace */
 }
 
 function replaceDashboardChart(){
