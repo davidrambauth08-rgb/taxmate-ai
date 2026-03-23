@@ -7379,4 +7379,153 @@ setTimeout(translateInvestPage,1500);
 setTimeout(translateInvestPage,3000);
 })();
 </script>
+
+<script>
+/* v5.1: Comprehensive Spanish translation — fix UTF-8, sidebar cats, headers, invoices, settings, dashboard */
+(function(){
+var lang=localStorage.getItem("taxmate-lang")||"en";
+if(lang==="en") return;
+
+function fixGarbledUTF8(){
+  var map={"Obt\u00c3\u00a9n":"Obtén","inversi\u00c3\u00b3n":"inversión","An\u00c3\u00a1lisis":"Análisis",
+    "Integraci\u00c3\u00b3n":"Integración","pr\u00c3\u00b3ximamente":"próximamente",
+    "autom\u00c3\u00a1ticas":"automáticas","a\u00c3\u00b1o":"año","m\u00c3\u00a1s":"más"};
+  var walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while(node=walker.nextNode()){
+    var t=node.textContent;
+    if(t.indexOf("\u00c3")<0) continue;
+    var orig=t;
+    for(var bad in map){ if(t.indexOf(bad)>=0) t=t.split(bad).join(map[bad]); }
+    t=t.split("\u00c3\u00a1").join("\u00e1").split("\u00c3\u00a9").join("\u00e9").split("\u00c3\u00b3").join("\u00f3").split("\u00c3\u00ba").join("\u00fa").split("\u00c3\u00b1").join("\u00f1");
+    if(t!==orig) node.textContent=t;
+  }
+}
+
+function translateSidebarCategories(){
+  var catMap={"Finance":"Finanzas","Tax":"Impuestos","Intelligence":"Inteligencia","Account":"Cuenta"};
+  var sidebar=document.querySelector(".sidebar");
+  if(!sidebar) return;
+  sidebar.querySelectorAll(".nav-label").forEach(function(el){
+    var t=el.textContent.trim();
+    if(catMap[t]) el.textContent=catMap[t];
+  });
+}
+
+function translatePageHeaders(){
+  var hMap={"Dashboard":"Panel","Income":"Ingresos","Expenses":"Gastos","Invoices":"Facturas",
+    "Tax Estimator":"Estimador de Impuestos","Reports":"Reportes","AI Insights":"IA Insights",
+    "Productivity":"Productividad","Resources":"Recursos","Grow Money":"Invertir",
+    "Plans":"Planes","Settings":"Configuración"};
+  var sMap={"Create and manage invoices":"Crea y gestiona facturas",
+    "Customize your TaxMate experience":"Personaliza tu experiencia TaxMate",
+    "Personalised investment options for Australia":"Opciones de inversión personalizadas para Australia",
+    "Track your income sources":"Registra tus fuentes de ingresos",
+    "Track your business expenses":"Registra los gastos de tu negocio",
+    "Estimate your tax obligations":"Estima tus obligaciones fiscales",
+    "View your financial reports":"Consulta tus reportes financieros",
+    "AI-powered insights for your finances":"Perspectivas de IA para tus finanzas"};
+  var walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while(node=walker.nextNode()){
+    var t=node.textContent.trim();
+    if(!t) continue;
+    if(hMap[t]) node.textContent=hMap[t];
+    if(sMap[t]) node.textContent=sMap[t];
+    for(var en in sMap){ if(t.indexOf(en)>=0) node.textContent=node.textContent.replace(en,sMap[en]); }
+    if(t.indexOf("Last updated")>=0) node.textContent=node.textContent.replace("Last updated just now","\u00daltima actualizaci\u00f3n: ahora").replace("Last updated","\u00dalt. actualizaci\u00f3n:");
+    if(t.indexOf("vs last month")>=0) node.textContent=node.textContent.replace("vs last month","vs mes anterior");
+  }
+}
+
+function translateInvoicesPage(){
+  var page=document.getElementById("page-invoices");
+  if(!page||page.style.display==="none") return;
+  var map={"TOTAL INVOICED":"TOTAL FACTURADO","INVOICE #":"FACTURA #","ISSUE DATE":"FECHA EMISI\u00d3N",
+    "ACTIONS":"ACCIONES","sent":"enviado","paid":"pagado","unpaid":"sin pagar",
+    "overdue":"vencido","draft":"borrador","inclusive":"incluido","exclusive":"excluido"};
+  var walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while(node=walker.nextNode()){
+    var t=node.textContent.trim();
+    if(map[t]) node.textContent=node.textContent.replace(t,map[t]);
+  }
+  var si=page.querySelector("input[placeholder]");
+  if(si&&si.placeholder.indexOf("invoices")>=0) si.placeholder="Buscar facturas...";
+}
+
+function translateSettingsPage(){
+  var page=document.getElementById("page-settings");
+  if(!page||page.style.display==="none") return;
+  var map={"Business Profile":"Perfil de Negocio","Tax & GST Settings":"Configuración de Impuestos y GST",
+    "Appearance":"Apariencia","Light":"Claro","Dark":"Oscuro","Save":"Guardar",
+    "Export Data":"Exportar Datos","Delete Account":"Eliminar Cuenta",
+    "Monthly":"Mensual","Quarterly":"Trimestral","Annually":"Anual",
+    "Danger Zone":"Zona de Peligro","Notifications":"Notificaciones",
+    "Language":"Idioma","Theme":"Tema","Data & Privacy":"Datos y Privacidad"};
+  var walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while(node=walker.nextNode()){
+    var t=node.textContent.trim();
+    if(map[t]) node.textContent=node.textContent.replace(t,map[t]);
+  }
+}
+
+function translateDashboard(){
+  var page=document.getElementById("page-dashboard");
+  if(!page||page.style.display==="none") return;
+  var map={"Financial Summary":"Resumen Financiero","New":"Nuevo",
+    "records":"registros","items deductible":"\u00edtems deducibles"};
+  var walker=document.createTreeWalker(page,NodeFilter.SHOW_TEXT,null,false);
+  var node;
+  while(node=walker.nextNode()){
+    var t=node.textContent.trim();
+    if(map[t]) node.textContent=node.textContent.replace(t,map[t]);
+    if(t.indexOf("vs last month")>=0) node.textContent=node.textContent.replace("vs last month","vs mes anterior");
+    if(t.indexOf("Last updated")>=0) node.textContent=node.textContent.replace("Last updated just now","\u00daltima actualizaci\u00f3n: ahora").replace("Last updated","\u00dalt. actualizaci\u00f3n:");
+  }
+}
+
+function translateCommonElements(){
+  document.querySelectorAll("button").forEach(function(btn){
+    if(btn.textContent.indexOf("Export CSV")>=0) btn.innerHTML=btn.innerHTML.replace("Export CSV","Exportar CSV");
+  });
+  var phMap={"Search invoices...":"Buscar facturas...","Search income...":"Buscar ingresos...",
+    "Search expenses...":"Buscar gastos...","Search...":"Buscar..."};
+  document.querySelectorAll("input[placeholder]").forEach(function(inp){
+    if(phMap[inp.placeholder]) inp.placeholder=phMap[inp.placeholder];
+  });
+}
+
+function runAllTranslations(){
+  fixGarbledUTF8();translateSidebarCategories();translatePageHeaders();
+  translateDashboard();translateInvoicesPage();translateSettingsPage();translateCommonElements();
+}
+
+var _origNav51=window.navigate;
+if(typeof _origNav51==="function"){
+  window.navigate=function(p){
+    _origNav51(p);
+    setTimeout(runAllTranslations,200);
+    setTimeout(runAllTranslations,800);
+  };
+}
+
+setTimeout(runAllTranslations,500);
+setTimeout(runAllTranslations,1500);
+setTimeout(runAllTranslations,3000);
+setTimeout(runAllTranslations,5000);
+
+var _obs51=new MutationObserver(function(mutations){
+  var dominated=false;
+  mutations.forEach(function(m){ if(m.addedNodes.length>0) dominated=true; });
+  if(dominated){
+    clearTimeout(window._trans51Timer);
+    window._trans51Timer=setTimeout(runAllTranslations,300);
+  }
+});
+_obs51.observe(document.body,{childList:true,subtree:true});
+
+})();
+</script>
 </html>
